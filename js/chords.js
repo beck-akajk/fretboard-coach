@@ -160,49 +160,80 @@
     return out;
   }
 
+  function shapeTones(shape) {
+    if (shape.root < 0) return null;
+    const q = QUALITIES[shape.quality] || QUALITIES[''];
+    const set = {};
+    q.intervals.forEach(function (i) { set[(shape.root + i) % 12] = true; });
+    return set;
+  }
+
+  /**
+   * 폼과 구간 음들을 대조한다.
+   * - 같은 줄·같은 프렛 : 강한 일치 (+2.6)
+   * - 같은 줄·2프렛 이내 : 지나가는 음 (+0.35)
+   * - 폼에 없는 줄이지만 코드 구성음 : 개방현 베이스 등 (+1.0)
+   * - 코드 구성음도 아님 : 감점 (-2.2)
+   */
   function chordPipeline(shape, segNotes) {
-    // segNotes: [{string, fret}]
-    let exact = 0, extra = 0;
+    let exact = 0, extra = 0, harm = 0, bad = 0;
     const usedStrings = {};
+    const tones = shapeTones(shape);
+    // 가장 낮은 음(베이스)은 비중을 크게
+    let lowest = null, lowestMidi = 999;
+    for (let i = 0; i < segNotes.length; i++) {
+      const n = segNotes[i];
+      const m = (n.midi != null ? n.midi : (STD_OPEN[6 - n.string] + n.fret));
+      if (m < lowestMidi) { lowestMidi = m; lowest = n; }
+    }
+    let score = 0;
     for (let i = 0; i < segNotes.length; i++) {
       const n = segNotes[i];
       usedStrings[n.string] = true;
       const f = shape.frets[6 - n.string];
-      if (f === n.fret) exact++;
-      else extra++;
+      const pc = (((n.midi != null ? n.midi : (STD_OPEN[6 - n.string] + n.fret)) % 12) + 12) % 12;
+      const w = (lowest && n === lowest) ? 1.7 : 1;
+      if (f === n.fret) { score += 2.6 * w; exact++; }
+      else if (f >= 0) {
+        const d = Math.abs(f - n.fret);
+        if (d <= 2) { score += 0.35 * w; extra++; }
+        else if (d <= 4 && tones && tones[pc]) { score -= 0.6 * w; bad++; extra++; }
+        else { score -= 2.4 * w; bad++; extra++; }
+      } else if (tones && tones[pc]) { score += 1.0 * w; harm++; extra++; }
+      else { score -= 1.4 * w; bad++; extra++; }
     }
     let ghost = 0;
     for (let i = 0; i < 6; i++) {
       if (shape.frets[i] > 0 && !usedStrings[6 - i]) ghost++;
     }
-    let score = 2.2 * exact - 2.8 * extra - 0.16 * ghost;
-    // 근음이 실제로 연주되면 가산
-    if (shape.root >= 0) {
-      for (let i = 0; i < segNotes.length; i++) {
-        const n = segNotes[i];
-        const open = STD_OPEN[6 - n.string];
-        if (((open + n.fret) % 12) === shape.root) { score += 0.45; break; }
-      }
+    score -= 0.16 * ghost;
+    // 오픈 폼을 살짝 선호하고, 특이한 화성(6/m6/sus 등)은 약간 감점
+    if (shape.form === '오픈') score += 0.35;
+    const qPenalty = { '6': 0.7, 'm6': 0.9, 'sus2': 0.5, 'sus4': 0.6, 'add9': 0.5, 'maj7': 0.3, '7': 0.2, 'm7': 0.15, '5': 0.5 };
+    score -= (qPenalty[shape.quality] || 0);
+    if (lowest && shape.root >= 0) {
+      const lowPc = (((lowest.midi != null ? lowest.midi : (STD_OPEN[6 - lowest.string] + lowest.fret)) % 12) + 12) % 12;
+      if (lowPc === shape.root) score += 1.2;
     }
-    return { exact: exact, extra: extra, ghost: ghost, score: score };
+    return { exact: exact, extra: extra, harm: harm, bad: bad, ghost: ghost, score: score };
   }
 
-  function matchChord(segNotes, prevShape) {
+  function matchChord(segNotes, prevShape, ratio) {
     if (!segNotes.length) return null;
-    const frets = fretMapOf(segNotes);
-    const uniq = [];
-    for (let s = 1; s <= 6; s++) if (s in frets) uniq.push({ string: s, fret: frets[s] });
+    const n = segNotes.length;
+    const r0 = ratio == null ? 0.5 : ratio;
+    const minExact = n <= 2 ? n : Math.max(2, Math.ceil(n * r0));
+    const maxBad = Math.max(1, Math.floor(n * 0.3));
+    const minScore = Math.max(2.4, n * 0.55);
 
     let best = null;
     for (let i = 0; i < shapes.length; i++) {
       const sh = shapes[i];
-      const r = chordPipeline(sh, uniq);
-      // 수용 조건
-      const ok =
-        (r.exact >= 2 && r.extra === 0) ||
-        (r.exact >= 3 && r.extra <= 1 && r.exact >= r.extra * 2.5);
+      const r = chordPipeline(sh, segNotes);
+      const ok = r.exact >= minExact && r.bad <= maxBad && r.score >= minScore &&
+        (r.exact + r.harm) >= Math.ceil(n * 0.5);
       if (!ok) continue;
-      const cand = { shape: sh, exact: r.exact, extra: r.extra, ghost: r.ghost, score: r.score };
+      const cand = { shape: sh, exact: r.exact, extra: r.extra, harm: r.harm, bad: r.bad, ghost: r.ghost, score: r.score };
       if (!best || cand.score > best.score + 1e-9 ||
         (Math.abs(cand.score - best.score) < 1e-9 && sh.frets.filter(function (f) { return f > 0; }).length <
           best.shape.frets.filter(function (f) { return f > 0; }).length)) {
@@ -210,14 +241,13 @@
       }
     }
 
-    // 이전 폼이 이 구간을 완전히 덮으면 그 폼을 유지(손 이동 최소화)
+    // 이전 폼이 이 구간을 잘 덮으면 그 폼을 유지(손 이동 최소화)
     if (prevShape) {
-      const r = chordPipeline(prevShape, uniq);
-      if (r.extra === 0 && r.exact >= Math.min(2, uniq.length)) {
-        if (!best || best.shape.name !== prevShape.name) {
-          const keep = { shape: prevShape, exact: r.exact, extra: r.extra, ghost: r.ghost, score: r.score + 0.8 };
-          if (!best || keep.score >= best.score - 0.5) best = keep;
-        }
+      const r = chordPipeline(prevShape, segNotes);
+      const keepOk = r.bad <= maxBad && r.exact >= minExact;
+      if (keepOk && (!best || best.shape.name !== prevShape.name)) {
+        const keep = { shape: prevShape, exact: r.exact, extra: r.extra, harm: r.harm, bad: r.bad, ghost: r.ghost, score: r.score + 0.9 };
+        if (!best || keep.score >= best.score) best = keep;
       }
     }
     return best;

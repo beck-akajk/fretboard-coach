@@ -50,10 +50,6 @@
   }
 
   function build() {
-    const prog = [
-      ['D', 'D', 'Bm7', 'Bm7', 'G', 'G', 'A'],
-      []
-    ];
     const arpBars = [];
 
     // 1–6마디: 두 마디씩 코드 유지

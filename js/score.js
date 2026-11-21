@@ -98,9 +98,11 @@
       const tuningArr = (staff.tuning && staff.tuning.length) ? staff.tuning : [40, 45, 50, 55, 59, 64];
       const count = tuningArr.length;
       const capo = staff.capo || 0;
+      // alphaTab의 note.string은 1 = 가장 낮은 줄(6번줄)이라,
+      // 타브에서 쓰는 번호(1 = 가장 높은 1번줄)로 뒤집어 쓴다.
       const tuning = {};
       for (let s = 1; s <= count; s++) {
-        tuning[s] = tuningArr[count - s] + capo;
+        tuning[s] = tuningArr[s - 1] + capo;
       }
 
       const bars = [];
@@ -124,7 +126,7 @@
                   if (note.isTieDestination) continue;
                   let fret = note.fret;
                   if (!isFinite(fret) || note.isDead) continue;
-                  const str = note.string;
+                  const str = count + 1 - note.string;
                   if (!(str in tuning)) continue;
                   let midi = tuning[str] + fret;
                   if (isFinite(note.realValue)) {

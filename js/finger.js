@@ -126,9 +126,24 @@
   // ------------------------------------------------------------- 마디 분석
   function chooseShape(events, from, to, prevShape, mode) {
     if (mode === 'position') return null;
-    const seg = uniqNotes(segNotesOf(events, from, to));
+    const seg = segNotesOf(events, from, to);
     if (!seg.length) return null;
-    const m = C.matchChord(seg, prevShape);
+    // 코드 폼은 3줄 이상을 함께 짚을 때만 의미가 있다.
+    const strings = {};
+    const perString = {};
+    let stringCount = 0;
+    for (let i = 0; i < seg.length; i++) {
+      const n = seg[i];
+      if (!strings[n.string]) { strings[n.string] = true; stringCount++; }
+      if (!perString[n.string]) perString[n.string] = {};
+      if (n.fret > 0) perString[n.string][n.fret] = true; // 개방현은 세지 않는다
+    }
+    if (stringCount < 3) return null;
+    const keys = Object.keys(perString);
+    for (let i = 0; i < keys.length; i++) {
+      if (Object.keys(perString[keys[i]]).length >= 3) return null; // 한 줄에서 3프렛 이상 이동 = 멜로디/리프
+    }
+    const m = C.matchChord(seg, prevShape, mode === 'chord' ? 0.25 : 0.5);
     return m ? m.shape : null;
   }
 
