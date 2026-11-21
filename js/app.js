@@ -214,8 +214,8 @@
       else x = LEFT + (note.fret - start + 0.5) * fretW;
       const label = note.finger ? String(note.finger) : (note.fret === 0 ? '0' : '·');
       if (ghost) {
-        out.push('<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="10" fill="rgba(90,104,130,.10)" stroke="#5f6879" stroke-width="1.4" stroke-dasharray="3 3"/>');
-        out.push('<text x="' + x.toFixed(1) + '" y="' + (y + 3.6).toFixed(1) + '" text-anchor="middle" font-size="9.5" font-weight="700" fill="#7b8599">' + (note.finger || '') + '</text>');
+        out.push('<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="10.5" fill="rgba(120,135,165,.16)" stroke="#8b95a9" stroke-width="1.5" stroke-dasharray="3.5 2.5"/>');
+        out.push('<text x="' + x.toFixed(1) + '" y="' + (y + 3.8).toFixed(1) + '" text-anchor="middle" font-size="10" font-weight="700" fill="#b3bcce">' + (note.finger || '') + '</text>');
       } else {
         const c = colorOf(note.finger);
         out.push('<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="12" fill="' + c + '" filter="url(#glow)" opacity="0.97"/>');
@@ -228,7 +228,7 @@
 
     if (!ev) {
       out.push('<text x="' + (W / 2) + '" y="' + (H / 2) + '" text-anchor="middle" font-size="13" fill="#4d5668">이 부분에는 연주할 음이 없습니다</text>');
-    } else if (fingers.length && fingers.every(function (f) { return f.fret === 0; })) {
+    } else if (fingers.length && !ghosts.length && fingers.every(function (f) { return f.fret === 0; })) {
       out.push('<text x="' + (LEFT + 90) + '" y="' + (H - 4) + '" font-size="10.5" fill="#6b7690">모두 개방현</text>');
     }
 
@@ -829,6 +829,13 @@
       } catch (e) { /* 데모로 */ }
     }
     loadModel(global.DemoSong.build());
+  }
+
+  // 홈 화면 설치용 서비스 워커 (오프라인에서도 열림)
+  if ('serviceWorker' in navigator && location.protocol === 'https:') {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('sw.js').catch(function () { /* 무시 */ });
+    });
   }
 
   global.FretCoach = {
