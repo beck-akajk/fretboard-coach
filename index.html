@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f1115">
+<title>프렛 코치 · 기타 타브 운지</title>
+<link rel="stylesheet" href="css/app.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎸</text></svg>">
+</head>
+<body>
+<div class="app">
+
+  <header class="topbar">
+    <div class="brand-row">
+      <div class="brand">
+        <span class="logo">🎸</span>
+        <span class="brand-name">프렛 코치</span>
+        <span class="brand-sub">FRET COACH</span>
+      </div>
+      <button id="loadBtn" class="btn btn-load" type="button">📂 .gp 파일</button>
+      <input id="fileInput" type="file" accept=".gp3,.gp4,.gp5,.gp,.gpx,.gp6,.gp7,.musicxml,.xml,.mxl" hidden>
+    </div>
+
+    <div class="song-row">
+      <div class="song-title" id="songTitle">연습 데모 · D – Bm7 – G – A</div>
+      <div class="song-meta" id="songMeta">자작 아르페지오 + 리프</div>
+    </div>
+
+    <div class="ctl-row">
+      <label class="field">
+        <span>트랙</span>
+        <select id="trackSel"></select>
+      </label>
+      <div class="segmented" id="modeSel" role="tablist" aria-label="운지 모드">
+        <button data-mode="auto" class="on" type="button">자동</button>
+        <button data-mode="chord" type="button">코드폼</button>
+        <button data-mode="position" type="button">포지션</button>
+      </div>
+      <button id="orderBtn" class="btn btn-ghost" type="button" title="지판 줄 순서 바꾸기">줄 순서 ⇅</button>
+    </div>
+
+    <div class="saved" id="savedRow" hidden></div>
+  </header>
+
+  <main>
+    <section class="panel now-panel">
+      <div class="now-head">
+        <div class="chord-box">
+          <div class="chord-cap">기준 코드 폼</div>
+          <div class="chord-name" id="chordName">—</div>
+          <div class="chord-shape" id="chordShape"></div>
+        </div>
+        <div class="now-text">
+          <div class="hint-main" id="hintMain">음표를 고르면 운지가 나옵니다</div>
+          <div class="hint-sub" id="hintSub"></div>
+          <div class="hint-next" id="hintNext"></div>
+        </div>
+      </div>
+
+      <div class="fretboard-wrap">
+        <svg id="fretboard" viewBox="0 0 900 250" preserveAspectRatio="xMidYMid meet" role="img" aria-label="기타 지판 운지"></svg>
+      </div>
+
+      <div class="legend">
+        <span class="lg"><i class="dot f1">1</i>검지</span>
+        <span class="lg"><i class="dot f2">2</i>중지</span>
+        <span class="lg"><i class="dot f3">3</i>약지</span>
+        <span class="lg"><i class="dot f4">4</i>소지</span>
+        <span class="lg"><i class="dot ghost">○</i>유지(고스트)</span>
+      </div>
+    </section>
+
+    <section class="panel tab-panel">
+      <div class="tab-head">
+        <span>타브</span>
+        <span class="tab-pos" id="tabPos">1마디 · 1/8</span>
+      </div>
+      <div class="strip-wrap" id="stripWrap">
+        <div class="strip" id="strip"></div>
+      </div>
+    </section>
+
+    <section class="panel transport">
+      <div class="sec-row">
+        <button class="tbtn" id="barPrev" type="button" aria-label="이전 마디">⏮</button>
+        <button class="tbtn" id="notePrev" type="button" aria-label="이전 음">◀</button>
+        <button class="tbtn play" id="playBtn" type="button" aria-label="재생">▶</button>
+        <button class="tbtn" id="noteNext" type="button" aria-label="다음 음">▶|</button>
+        <button class="tbtn" id="barNext" type="button" aria-label="다음 마디">⏭</button>
+      </div>
+      <div class="sec-row speed-row">
+        <span class="lab">속도</span>
+        <input id="speed" type="range" min="0.5" max="1" step="0.05" value="0.8">
+        <span class="val" id="speedVal">0.8x</span>
+        <span class="bpm" id="bpmVal">— BPM</span>
+      </div>
+      <div class="sec-row loop-row">
+        <span class="lab">구간 반복</span>
+        <button class="btn btn-mini" id="loopA" type="button">A</button>
+        <button class="btn btn-mini" id="loopB" type="button">B</button>
+        <span class="loop-val" id="loopVal">없음</span>
+        <button class="btn btn-mini" id="loopClear" type="button">해제</button>
+        <button class="btn btn-mini" id="metBtn" type="button" title="메트로놈">🥁</button>
+      </div>
+    </section>
+
+    <details class="panel diag" id="diag">
+      <summary>파일 정보 / 파싱 결과</summary>
+      <div class="diag-body" id="diagBody">데모 데이터</div>
+    </details>
+
+    <p class="foot-note">
+      올린 .gp3 / .gp4 / .gp5 파일은 서버로 가지 않고 이 브라우저 안에서만 읽습니다. 저장한 곡은 이 기기의 브라우저 저장소에 남습니다.
+    </p>
+  </main>
+
+  <div class="toast" id="toast" hidden></div>
+  <div class="drop-hint" id="dropHint" hidden>파일을 놓으면 바로 열립니다</div>
+</div>
+
+<script>
+window.__errors = [];
+window.addEventListener('error', function (e) {
+  window.__errors.push((e.message || 'error') + ' @' + (e.filename || '').split('/').pop() + ':' + (e.lineno || 0));
+});
+window.addEventListener('unhandledrejection', function (e) {
+  window.__errors.push('promise: ' + (e.reason && e.reason.message ? e.reason.message : e.reason));
+});
+</script>
+<script src="vendor/alphaTab.min.js"></script>
+<script src="js/chords.js"></script>
+<script src="js/finger.js"></script>
+<script src="js/demo.js"></script>
+<script src="js/score.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

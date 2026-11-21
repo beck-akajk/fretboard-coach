@@ -1,0 +1,871 @@
+/* 프렛 코치 — 앱 로직 */
+(function (global) {
+  'use strict';
+
+  const $ = function (id) { return document.getElementById(id); };
+  const FINGER_NAME = { 1: '검지', 2: '중지', 3: '약지', 4: '소지' };
+  const FINGER_COLOR = { 1: '#4a9eff', 2: '#2fd07a', 3: '#ff9f43', 4: '#b07cff', 0: '#9aa6bd' };
+  const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+
+  const S = {
+    score: null,
+    trackIndex: 0,
+    mode: 'auto',
+    order: 'low',          // low = 6번줄 아래
+    bars: [],
+    flat: [],
+    cur: 0,
+    speed: 0.8,
+    playing: false,
+    loopA: null,
+    loopB: null,
+    metronome: false,
+    saved: [],
+    lastId: null
+  };
+
+  const P = {
+    timer: null,
+    raf: 0,
+    cursor: 0,
+    nextTime: 0,
+    log: [],
+    logPos: 0
+  };
+
+  // ---------------------------------------------------------------- 유틸
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+    });
+  }
+  function colorOf(f) { return FINGER_COLOR[f] || FINGER_COLOR[0]; }
+  function rowOf(str) { return S.order === 'low' ? str - 1 : 6 - str; }
+  function track() { return S.score ? S.score.tracks[S.trackIndex] : null; }
+
+  function toast(msg, ms) {
+    const t = $('toast');
+    t.textContent = msg;
+    t.hidden = false;
+    clearTimeout(toast._t);
+    toast._t = setTimeout(function () { t.hidden = true; }, ms || 2600);
+  }
+
+  // ---------------------------------------------------------------- 분석
+  function rebuild(keepTick) {
+    const tr = track();
+    if (!tr) return;
+    const bars = [];
+    let prevShape = null;
+    for (let bi = 0; bi < tr.bars.length; bi++) {
+      const r = global.Finger.analyzeBar(tr.bars[bi], tr, S.mode, prevShape);
+      prevShape = r.prevShape;
+      bars.push({ bar: tr.bars[bi], events: r.events, shapes: r.shapes });
+    }
+    let gi = 0;
+    const flat = [];
+    bars.forEach(function (b, bi) {
+      b.events.forEach(function (ev, ei) {
+        ev.barIndex = bi;
+        ev.barEventIndex = ei;
+        ev.gi = gi++;
+        flat.push(ev);
+      });
+    });
+    S.bars = bars;
+    S.flat = flat;
+
+    let next = 0;
+    if (keepTick != null) {
+      next = flat.findIndex(function (e) { return e.tick >= keepTick; });
+      if (next < 0) next = flat.length - 1;
+      if (next < 0) next = 0;
+    }
+    S.cur = Math.max(0, Math.min(next, Math.max(0, flat.length - 1)));
+
+    renderStrip();
+    renderAll();
+  }
+
+  function model() {
+    const tr = track();
+    if (!tr) return null;
+    if (S.flat[S.cur]) return S.flat[S.cur];
+    return S.flat[0] || null;
+  }
+
+  // ---------------------------------------------------------------- 재생 시간
+  function barOf(index) {
+    const tr = track();
+    return tr ? tr.bars[index] : null;
+  }
+  function evSeconds(ev) {
+    const b = barOf(ev.barIndex);
+    const tempo = (b && b.tempo) || 120;
+    return (ev.dur / 960) * (60 / tempo) / S.speed;
+  }
+  function loopRange() {
+    if (S.loopA == null) return null;
+    const a = S.loopA;
+    const b = S.loopB == null ? S.loopA : S.loopB;
+    return { a: Math.min(a, b), b: Math.max(a, b) };
+  }
+  function firstIndexInBar(bi) {
+    for (let i = 0; i < S.flat.length; i++) if (S.flat[i].barIndex >= bi) return i;
+    return S.flat.length;
+  }
+  function isLastEventOfBar(ev) {
+    const b = S.bars[ev.barIndex];
+    return b && ev.barEventIndex === b.events.length - 1;
+  }
+
+  // ---------------------------------------------------------------- 지판
+  function drawFretboard() {
+    const svg = $('fretboard');
+    const W = 900, H = 250, LEFT = 70, RIGHT = 18, TOP = 46, BOT = 22;
+    const FRETS = 12;
+    const gap = (H - TOP - BOT) / 5;
+    const fretW = (W - LEFT - RIGHT) / FRETS;
+    const ev = S.flat[S.cur] || null;
+    const fingers = ev ? ev.fingers : [];
+    const ghosts = ev ? ev.ghosts : [];
+
+    const fretted = fingers.filter(function (f) { return f.fret > 0; }).map(function (f) { return f.fret; })
+      .concat(ghosts.filter(function (f) { return f.fret > 0; }).map(function (f) { return f.fret; }));
+    let start = 1;
+    if (fretted.length) {
+      const mn = Math.min.apply(null, fretted);
+      const mx = Math.max.apply(null, fretted);
+      start = Math.max(1, mn - 1);
+      if (mx > start + FRETS - 1) start = Math.max(1, mx - FRETS + 1);
+    }
+
+    const out = [];
+    out.push('<defs><filter id="glow" x="-50%" y="-50%" width="200%" height="200%">' +
+      '<feGaussianBlur stdDeviation="3.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>');
+    out.push('<rect x="0" y="0" width="' + W + '" height="' + H + '" fill="none"/>');
+
+    // 포지션 브래킷
+    if (ev && ev.engine === 'position' && ev.position != null) {
+      const p0 = Math.max(start, ev.position);
+      const p1 = Math.min(start + FRETS - 1, ev.position + 4);
+      if (p1 >= p0) {
+        const x0 = LEFT + (p0 - start) * fretW;
+        const x1 = LEFT + (p1 - start + 1) * fretW;
+        out.push('<rect x="' + x0.toFixed(1) + '" y="' + (TOP - 24) + '" width="' + (x1 - x0).toFixed(1) +
+          '" height="' + (H - TOP - BOT + 40) + '" rx="7" fill="rgba(255,182,77,.07)" stroke="rgba(255,182,77,.35)" stroke-dasharray="4 4"/>');
+        out.push('<text x="' + ((x0 + x1) / 2).toFixed(1) + '" y="' + (TOP - 28) +
+          '" text-anchor="middle" fill="rgba(255,182,77,.8)" font-size="10" font-weight="700">포지션 ' + ev.position + '프렛</text>');
+      }
+    }
+
+    // 프렛 번호
+    for (let k = 0; k < FRETS; k++) {
+      const num = start + k;
+      const cx = LEFT + (k + 0.5) * fretW;
+      const mark = [3, 5, 7, 9, 12, 15, 17, 19, 21].indexOf(num) >= 0;
+      out.push('<text x="' + cx.toFixed(1) + '" y="' + (TOP - 12) + '" text-anchor="middle" font-size="' +
+        (mark ? 12 : 10.5) + '" font-weight="' + (mark ? 700 : 500) + '" fill="' + (mark ? '#c9d3e6' : '#5f6879') + '">' + num + '</text>');
+    }
+
+    // 인레이
+    for (let k = 0; k < FRETS; k++) {
+      const num = start + k;
+      const cx = LEFT + (k + 0.5) * fretW;
+      if (num === 12) {
+        out.push('<circle cx="' + cx.toFixed(1) + '" cy="' + (TOP + gap * 2).toFixed(1) + '" r="3" fill="#2c3547"/>');
+        out.push('<circle cx="' + cx.toFixed(1) + '" cy="' + (TOP + gap * 3).toFixed(1) + '" r="3" fill="#2c3547"/>');
+      } else if ([3, 5, 7, 9, 15, 17, 19, 21].indexOf(num) >= 0) {
+        out.push('<circle cx="' + cx.toFixed(1) + '" cy="' + (TOP + gap * 2.5).toFixed(1) + '" r="3" fill="#2c3547"/>');
+      }
+    }
+
+    // 프렛 선
+    for (let k = 0; k <= FRETS; k++) {
+      const x = LEFT + k * fretW;
+      const isNut = (k === 0 && start === 1);
+      out.push('<line x1="' + x.toFixed(1) + '" y1="' + (TOP - 6) + '" x2="' + x.toFixed(1) + '" y2="' + (H - BOT + 6) +
+        '" stroke="' + (isNut ? '#dfe6f3' : '#39435a') + '" stroke-width="' + (isNut ? 5 : 1.2) + '"/>');
+    }
+
+    // 줄
+    for (let s = 1; s <= 6; s++) {
+      const y = TOP + rowOf(s) * gap;
+      const w = 1 + (6 - s) * 0.42;
+      out.push('<line x1="' + (LEFT - 6) + '" y1="' + y.toFixed(1) + '" x2="' + (W - RIGHT) + '" y2="' + y.toFixed(1) +
+        '" stroke="#5a6b85" stroke-width="' + w.toFixed(2) + '"/>');
+    }
+
+    // 줄 이름 + 개방현 열
+    const tuning = (track() && track().tuning) || {};
+    for (let s = 1; s <= 6; s++) {
+      const y = TOP + rowOf(s) * gap;
+      const midi = tuning[s];
+      const name = midi == null ? '?' : NOTE_NAMES[((midi % 12) + 12) % 12];
+      out.push('<text x="8" y="' + (y + 4).toFixed(1) + '" font-size="10.5" font-weight="700" fill="#6b7690">' +
+        s + '·' + name + '</text>');
+    }
+
+    // 음 배지
+    function badge(note, ghost) {
+      const y = TOP + rowOf(note.string) * gap;
+      let x;
+      if (note.fret === 0) x = LEFT - 26;
+      else x = LEFT + (note.fret - start + 0.5) * fretW;
+      const label = note.finger ? String(note.finger) : (note.fret === 0 ? '0' : '·');
+      if (ghost) {
+        out.push('<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="10" fill="rgba(90,104,130,.10)" stroke="#5f6879" stroke-width="1.4" stroke-dasharray="3 3"/>');
+        out.push('<text x="' + x.toFixed(1) + '" y="' + (y + 3.6).toFixed(1) + '" text-anchor="middle" font-size="9.5" font-weight="700" fill="#7b8599">' + (note.finger || '') + '</text>');
+      } else {
+        const c = colorOf(note.finger);
+        out.push('<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="12" fill="' + c + '" filter="url(#glow)" opacity="0.97"/>');
+        out.push('<text x="' + x.toFixed(1) + '" y="' + (y + 4.2).toFixed(1) + '" text-anchor="middle" font-size="11.5" font-weight="800" fill="#0b0e14">' + label + '</text>');
+      }
+    }
+
+    ghosts.forEach(function (g) { badge(g, true); });
+    fingers.forEach(function (f) { badge(f, false); });
+
+    if (!ev) {
+      out.push('<text x="' + (W / 2) + '" y="' + (H / 2) + '" text-anchor="middle" font-size="13" fill="#4d5668">이 부분에는 연주할 음이 없습니다</text>');
+    } else if (fingers.length && fingers.every(function (f) { return f.fret === 0; })) {
+      out.push('<text x="' + (LEFT + 90) + '" y="' + (H - 4) + '" font-size="10.5" fill="#6b7690">모두 개방현</text>');
+    }
+
+    svg.innerHTML = out.join('');
+  }
+
+  // ---------------------------------------------------------------- 현재 정보
+  function fingerPhrase(f) {
+    if (f.fret === 0) return '개방현 ' + f.string + '번줄';
+    const fl = f.finger ? '<span class="f' + f.finger + '">' + f.finger + '번 ' + FINGER_NAME[f.finger] + '</span>' : '';
+    return (fl ? fl + ' · ' : '') + f.string + '번줄 ' + f.fret + '프렛';
+  }
+
+  function movesOf(ev, prev) {
+    if (!prev || !prev.fingers) return [];
+    const a = {}, b = {};
+    prev.fingers.forEach(function (f) { if (f.finger) a[f.finger] = f.string + ':' + f.fret; });
+    ev.fingers.forEach(function (f) { if (f.finger) b[f.finger] = f.string + ':' + f.fret; });
+    const out = [];
+    Object.keys(b).forEach(function (k) { if (a[k] !== b[k]) out.push(Number(k)); });
+    return out;
+  }
+
+  function renderNow() {
+    const ev = S.flat[S.cur];
+    const prev = S.flat[S.cur - 1];
+    const chordNameEl = $('chordName');
+    const chordShapeEl = $('chordShape');
+    const main = $('hintMain');
+    const sub = $('hintSub');
+    const next = $('hintNext');
+
+    if (!ev) {
+      chordNameEl.textContent = '—';
+      chordShapeEl.textContent = '';
+      main.textContent = '음이 없습니다';
+      sub.textContent = '';
+      next.textContent = '';
+      return;
+    }
+
+    if (ev.shape) {
+      chordNameEl.textContent = ev.shape.name;
+      chordNameEl.style.color = '#fff';
+      chordShapeEl.textContent = ev.shapeLabel + ' · ' + ev.shape.form;
+    } else {
+      chordNameEl.textContent = ev.engine === 'position' ? '포지션' : '—';
+      chordNameEl.style.color = '#c9d3e6';
+      chordShapeEl.textContent = '1번 손가락 ' + ev.position + '프렛';
+    }
+
+    const parts = ev.fingers.slice()
+      .sort(function (a, b) { return b.string - a.string; })
+      .map(fingerPhrase);
+    main.innerHTML = parts.length ? parts.join(' <span style="color:#5f6879">+</span> ') : '—';
+
+    const bits = [];
+    if (ev.shape) {
+      bits.push('기준 폼 ' + ev.shape.name + ' 유지');
+      const extras = ev.fingers.filter(function (f) { return f.kind === 'extra'; });
+      if (extras.length) {
+        bits.push('폼 밖 음은 ' + extras.map(function (f) { return f.finger ? f.finger + '번' : '이동'; }).join('·'));
+      }
+      if (ev.ghosts.length) bits.push('나머지 ' + ev.ghosts.length + '개 손가락은 그대로');
+    } else {
+      bits.push('포지션 ' + ev.position + '프렛 (1번 손가락 기준)');
+    }
+    const mv = movesOf(ev, prev);
+    if (mv.length && prev && prev.engine === ev.engine) {
+      bits.push('움직임 ' + mv.map(function (f) { return f + '번'; }).join('·'));
+    }
+    sub.textContent = bits.join(' · ');
+
+    const nx = S.flat[S.cur + 1];
+    if (nx && nx.fingers.length) {
+      const f0 = nx.fingers[0];
+      next.textContent = '다음 · ' + (f0.finger ? f0.finger + '번 ' + FINGER_NAME[f0.finger] + ' ' : '') +
+        (f0.fret === 0 ? f0.string + '번줄 개방' : f0.string + '번줄 ' + f0.fret + '프렛');
+    } else {
+      next.textContent = '';
+    }
+
+    // 탭 위치 표기
+    const b = S.bars[ev.barIndex];
+    if (b) {
+      $('tabPos').textContent = (ev.barIndex + 1) + '마디 · ' + (ev.barEventIndex + 1) + '/' + b.events.length;
+    }
+  }
+
+  // ---------------------------------------------------------------- 타브 스트립
+  function renderStrip() {
+    const strip = $('strip');
+    let html = '';
+    for (let bi = 0; bi < S.bars.length; bi++) {
+      const b = S.bars[bi];
+      const bar = b.bar;
+      const evs = b.events;
+      const slots = Math.max(4, Math.min(16, evs.length || bar.tsNum * 2));
+      const width = Math.max(58, 16 + slots * 12);
+      const names = (b.shapes || []).filter(Boolean).map(function (s) { return s.name; });
+      html += '<div class="bar" data-bar="' + bi + '" style="width:' + width + 'px">';
+      html += '<div class="bar-chord">' + esc(names.join(' / ')) + '</div>';
+      html += '<div class="bar-num">' + (bi + 1) + '</div>';
+      html += '<div class="bar-body"><div class="lines"></div>';
+      for (let ei = 0; ei < evs.length; ei++) {
+        const ev = evs[ei];
+        const left = ((ev.tick - bar.startTick) / Math.max(1, bar.lenTicks)) * 100;
+        for (let k = 0; k < ev.notes.length; k++) {
+          const n = ev.notes[k];
+          let finger = 0;
+          for (let fi = 0; fi < ev.fingers.length; fi++) {
+            if (ev.fingers[fi].string === n.string) { finger = ev.fingers[fi].finger; break; }
+          }
+          const top = 6 + rowOf(n.string) * 12.4;
+          html += '<span class="n' + (n.fret === 0 ? ' open' : '') + '" data-i="' + ev.gi + '" style="left:' +
+            left.toFixed(2) + '%;top:' + top.toFixed(1) + 'px;color:' + colorOf(finger) + '">' +
+            (n.fret === 0 ? '0' : n.fret) + '</span>';
+        }
+      }
+      html += '<div class="playhead" data-ph="' + bi + '" style="display:none"></div>';
+      html += '</div></div>';
+    }
+    strip.innerHTML = html;
+    markLoop();
+  }
+
+  function markLoop() {
+    const r = loopRange();
+    document.querySelectorAll('.bar').forEach(function (el) {
+      const bi = Number(el.getAttribute('data-bar'));
+      const on = r && bi >= r.a && bi <= r.b;
+      el.classList.toggle('inloop', !!on);
+    });
+  }
+
+  function updateStripCurrent() {
+    const ev = S.flat[S.cur];
+    if (!ev) return;
+    const body = document.querySelector('.bar[data-bar="' + ev.barIndex + '"] .bar-body');
+    if (!body) return;
+    document.querySelectorAll('.bar .playhead').forEach(function (el) { el.style.display = 'none'; });
+    const ph = body.querySelector('.playhead');
+    if (ph) {
+      ph.style.display = 'block';
+      const pct = ((ev.tick - S.bars[ev.barIndex].bar.startTick) / Math.max(1, S.bars[ev.barIndex].bar.lenTicks)) * 100;
+      ph.style.left = pct.toFixed(2) + '%';
+    }
+    document.querySelectorAll('.n.cur').forEach(function (el) { el.classList.remove('cur'); });
+    document.querySelectorAll('.n[data-i="' + S.cur + '"]').forEach(function (el) { el.classList.add('cur'); });
+    document.querySelectorAll('.bar.cur').forEach(function (el) { el.classList.remove('cur'); });
+    const barEl = document.querySelector('.bar[data-bar="' + ev.barIndex + '"]');
+    if (barEl) {
+      barEl.classList.add('cur');
+      const wrap = $('stripWrap');
+      const left = barEl.offsetLeft;
+      const right = left + barEl.offsetWidth;
+      if (left < wrap.scrollLeft + 8 || right > wrap.scrollLeft + wrap.clientWidth - 8) {
+        wrap.scrollTo({ left: Math.max(0, left - 24), behavior: 'smooth' });
+      }
+    }
+  }
+
+  function renderAll() {
+    drawFretboard();
+    renderNow();
+    updateStripCurrent();
+    updateTransport();
+  }
+
+  function updateTransport() {
+    const ev = S.flat[S.cur];
+    const b = ev ? barOf(ev.barIndex) : null;
+    const tempo = b ? b.tempo : (S.score ? S.score.tempo : 120);
+    $('bpmVal').textContent = Math.round(tempo * S.speed) + ' BPM';
+    $('speedVal').textContent = S.speed.toFixed(2).replace(/0$/, '') + 'x';
+    const r = loopRange();
+    $('loopVal').textContent = S.loopA == null ? '없음' :
+      (r.a + 1) + '–' + (r.b + 1) + '마디';
+    $('loopA').classList.toggle('on', S.loopA != null);
+    $('loopB').classList.toggle('on', S.loopB != null);
+    $('metBtn').classList.toggle('on', S.metronome);
+  }
+
+  // ---------------------------------------------------------------- 재생
+  function setCurrent(i, opts) {
+    if (!S.flat.length) { S.cur = 0; return; }
+    i = Math.max(0, Math.min(S.flat.length - 1, i));
+    if (i === S.cur && !(opts && opts.force)) { renderAll(); return; }
+    S.cur = i;
+    renderAll();
+    if (opts && opts.silent) return;
+  }
+
+  function seekTo(i) {
+    const wasPlaying = S.playing;
+    stopPlayback();
+    setCurrent(i, { force: true });
+    if (wasPlaying) startPlayback();
+  }
+
+  function scheduleClicks(ev, when, durSec) {
+    const bar = barOf(ev.barIndex);
+    if (!bar) return;
+    const beat = 960;
+    let next = Math.ceil(ev.tick / beat) * beat;
+    let guard = 0;
+    while (next < ev.tick + ev.dur && guard++ < 64) {
+      const frac = ev.dur ? (next - ev.tick) / ev.dur : 0;
+      const accent = (next === bar.startTick);
+      global.Guitar.click(when + frac * durSec, accent);
+      next += beat;
+    }
+  }
+
+  function scheduler() {
+    if (!S.playing) return;
+    const now = global.Guitar.ctx.currentTime;
+    let guard = 0;
+    while (P.cursor < S.flat.length && P.nextTime < now + 0.22 && guard++ < 300) {
+      const ev = S.flat[P.cursor];
+      const dur = evSeconds(ev);
+      if (P.nextTime > now - 0.05) {
+        global.Guitar.chord(ev.notes, P.nextTime, dur);
+        if (S.metronome) scheduleClicks(ev, P.nextTime, dur);
+      }
+      P.log.push({ i: P.cursor, t: P.nextTime });
+      P.nextTime += dur;
+      P.cursor++;
+      const r = loopRange();
+      if (r && ev.barIndex === r.b && isLastEventOfBar(ev)) {
+        const jump = firstIndexInBar(r.a);
+        P.cursor = jump;
+      }
+    }
+  }
+
+  function startPlayback() {
+    if (!S.flat.length) return;
+    global.Guitar.resume();
+    const ctx = global.Guitar.ctx;
+    S.playing = true;
+    P.cursor = S.cur;
+    P.nextTime = ctx.currentTime + 0.09;
+    P.log = [];
+    P.logPos = 0;
+    $('playBtn').textContent = '❚❚';
+    clearInterval(P.timer);
+    P.timer = setInterval(scheduler, 35);
+    scheduler();
+    if (!P.raf) P.raf = requestAnimationFrame(rafLoop);
+  }
+
+  function stopPlayback(keep) {
+    S.playing = false;
+    clearInterval(P.timer);
+    P.timer = null;
+    if (global.Guitar.ctx) global.Guitar.stopAll();
+    $('playBtn').textContent = '▶';
+    if (!keep) { /* 위치 유지 */ }
+  }
+
+  let lastFrameTime = 0;
+  function rafLoop(t) {
+    P.raf = 0;
+    if (!S.playing) { updateTransport(); return; }
+    const now = global.Guitar.ctx.currentTime;
+    let changed = false;
+    while (P.logPos < P.log.length && P.log[P.logPos].t <= now) {
+      const idx = P.log[P.logPos].i;
+      if (idx !== S.cur) { S.cur = idx; changed = true; }
+      P.logPos++;
+    }
+    if (P.logPos > 240) { P.log = P.log.slice(P.logPos); P.logPos = 0; }
+    if (changed) { renderAll(); }
+    if (P.cursor >= S.flat.length && P.logPos >= P.log.length && now > P.nextTime) {
+      // 곡 끝
+      const r = loopRange();
+      if (r) {
+        P.cursor = firstIndexInBar(r.a);
+      } else {
+        stopPlayback();
+        updateTransport();
+        return;
+      }
+    }
+    P.raf = requestAnimationFrame(rafLoop);
+  }
+
+  // ---------------------------------------------------------------- 모드/트랙
+  function setMode(mode) {
+    if (S.mode === mode) return;
+    S.mode = mode;
+    document.querySelectorAll('#modeSel button').forEach(function (b) {
+      b.classList.toggle('on', b.getAttribute('data-mode') === mode);
+    });
+    const ev = S.flat[S.cur];
+    const tick = ev ? ev.tick : 0;
+    const wasPlaying = S.playing;
+    stopPlayback();
+    rebuild(tick);
+    if (wasPlaying) startPlayback();
+  }
+
+  function setTrack(index) {
+    if (index === S.trackIndex) return;
+    const ev = S.flat[S.cur];
+    const tick = ev ? ev.tick : 0;
+    const wasPlaying = S.playing;
+    stopPlayback();
+    S.trackIndex = index;
+    S.loopA = null; S.loopB = null;
+    rebuild(tick);
+    if (wasPlaying) startPlayback();
+  }
+
+  function updateTrackOptions() {
+    const sel = $('trackSel');
+    const tr = S.score ? S.score.tracks : [];
+    sel.innerHTML = tr.map(function (t, i) {
+      return '<option value="' + i + '">' + esc(t.name) + '</option>';
+    }).join('');
+    sel.value = String(S.trackIndex);
+  }
+
+  // ---------------------------------------------------------------- 파일/저장
+  function loadModel(m, opts) {
+    stopPlayback();
+    S.score = m;
+    S.trackIndex = 0;
+    S.loopA = null; S.loopB = null;
+    if (!m.tracks.length) {
+      toast('연주할 트랙이 없습니다');
+      return;
+    }
+    // 음이 있는 첫 트랙
+    let idx = 0;
+    for (let i = 0; i < m.tracks.length; i++) {
+      if (m.tracks[i].noteCount > 0) { idx = i; break; }
+    }
+    S.trackIndex = idx;
+    $('songTitle').textContent = m.title || '제목 없음';
+    $('songMeta').textContent = m.meta || '';
+    updateTrackOptions();
+    rebuild(0);
+    renderDiag();
+    if (!S.flat.length) toast('이 트랙에서 음을 찾지 못했습니다');
+    if (opts && opts.id) {
+      S.lastId = opts.id;
+      localStorage.setItem('fc_last', opts.id);
+    }
+    renderSaved();
+  }
+
+  function renderDiag() {
+    if (!S.score) return;
+    const tr = track();
+    const lines = [];
+    lines.push('제목 : ' + (S.score.title || ''));
+    lines.push('출처 : ' + (S.score.fileName || '') + (S.score.source === 'demo' ? ' (내장 데모)' : ''));
+    lines.push('트랙 : ' + S.score.tracks.length + '개 / 마디 : ' + (tr ? tr.bars.length : 0) + ' / 음 : ' + (tr ? tr.noteCount : 0));
+    lines.push('튜닝 : ' + (tr ? tr.tuningText : '') + (tr && tr.capo ? ' (카포 ' + tr.capo + ')' : ''));
+    lines.push('기본 템포 : ' + Math.round(S.score.tempo) + ' BPM');
+    if (tr) {
+      const withNotes = tr.bars.filter(function (b) { return b.events.length; }).length;
+      lines.push('음이 있는 마디 : ' + withNotes + ' / ' + tr.bars.length);
+      lines.push('운지 계산 : 코드폼 ' + S.flat.filter(function (e) { return e.engine === 'chord'; }).length +
+        '음 / 포지션 ' + S.flat.filter(function (e) { return e.engine === 'position'; }).length + '음');
+    }
+    if (S.score.stats && S.score.stats.demo) lines.push('데모 데이터 (직접 만든 진행이라 저작권 이슈 없음)');
+    $('diagBody').textContent = lines.join('\n');
+  }
+
+  const Store = {
+    db: null,
+    open: function () {
+      const self = this;
+      if (this.db) return Promise.resolve(this.db);
+      return new Promise(function (resolve) {
+        let req;
+        try { req = indexedDB.open('fretcoach', 1); } catch (e) { resolve(null); return; }
+        req.onupgradeneeded = function (e) {
+          const db = e.target.result;
+          if (!db.objectStoreNames.contains('songs')) db.createObjectStore('songs', { keyPath: 'id' });
+        };
+        req.onsuccess = function (e) { self.db = e.target.result; resolve(self.db); };
+        req.onerror = function () { resolve(null); };
+      });
+    },
+    list: async function () {
+      const db = await this.open();
+      if (!db) return [];
+      return new Promise(function (resolve) {
+        const tx = db.transaction('songs', 'readonly');
+        const req = tx.objectStore('songs').getAll();
+        req.onsuccess = function () { resolve((req.result || []).sort(function (a, b) { return b.at - a.at; })); };
+        req.onerror = function () { resolve([]); };
+      });
+    },
+    put: async function (rec) {
+      const db = await this.open();
+      if (!db) return;
+      return new Promise(function (resolve) {
+        const tx = db.transaction('songs', 'readwrite');
+        tx.objectStore('songs').put(rec);
+        tx.oncomplete = function () { resolve(); };
+        tx.onerror = function () { resolve(); };
+      });
+    },
+    del: async function (id) {
+      const db = await this.open();
+      if (!db) return;
+      return new Promise(function (resolve) {
+        const tx = db.transaction('songs', 'readwrite');
+        tx.objectStore('songs').delete(id);
+        tx.oncomplete = function () { resolve(); };
+        tx.onerror = function () { resolve(); };
+      });
+    }
+  };
+
+  function renderSaved() {
+    const row = $('savedRow');
+    if (!S.saved.length) { row.hidden = true; return; }
+    row.hidden = false;
+    row.innerHTML = S.saved.map(function (s) {
+      return '<span class="chip' + (S.lastId === s.id ? ' on' : '') + '" data-id="' + esc(s.id) + '">' +
+        esc(s.name) + '<button class="x" data-del="' + esc(s.id) + '" aria-label="삭제">×</button></span>';
+    }).join('');
+  }
+
+  async function refreshSaved() {
+    S.saved = await Store.list();
+    renderSaved();
+  }
+
+  async function loadFile(file) {
+    try {
+      toast('읽는 중…', 4000);
+      const buf = await file.arrayBuffer();
+      const m = global.ScoreTools.loadFromBytes(buf, file.name);
+      const id = file.name + ':' + buf.byteLength;
+      loadModel(m, { id: id });
+      await Store.put({ id: id, name: file.name, data: buf, at: Date.now() });
+      await refreshSaved();
+      toast('불러왔습니다 · 마디 ' + (track() ? track().bars.length : 0) + '개');
+    } catch (e) {
+      console.error(e);
+      toast('이 파일은 읽지 못했습니다 · gp3/gp4/gp5 형식인지 확인해 주세요', 4200);
+    }
+  }
+
+  // ---------------------------------------------------------------- 초기화
+  function bind() {
+    $('loadBtn').addEventListener('click', function () { $('fileInput').click(); });
+    $('fileInput').addEventListener('change', function (e) {
+      const f = e.target.files && e.target.files[0];
+      if (f) loadFile(f);
+      e.target.value = '';
+    });
+
+    document.querySelectorAll('#modeSel button').forEach(function (b) {
+      b.addEventListener('click', function () { setMode(b.getAttribute('data-mode')); });
+    });
+
+    $('trackSel').addEventListener('change', function (e) { setTrack(Number(e.target.value)); });
+
+    $('orderBtn').addEventListener('click', function () {
+      S.order = S.order === 'low' ? 'high' : 'low';
+      toast(S.order === 'low' ? '6번줄을 아래로' : '1번줄을 아래로', 1400);
+      renderStrip();
+      drawFretboard();
+      updateStripCurrent();
+    });
+
+    $('playBtn').addEventListener('click', function () {
+      if (S.playing) { stopPlayback(); updateTransport(); }
+      else startPlayback();
+    });
+
+    $('notePrev').addEventListener('click', function () { seekTo(S.cur - 1); });
+    $('noteNext').addEventListener('click', function () { seekTo(S.cur + 1); });
+    $('barPrev').addEventListener('click', function () {
+      const ev = S.flat[S.cur];
+      const bi = ev ? ev.barIndex : 0;
+      seekTo(firstIndexInBar(Math.max(0, bi - 1)));
+    });
+    $('barNext').addEventListener('click', function () {
+      const ev = S.flat[S.cur];
+      const bi = ev ? ev.barIndex : 0;
+      seekTo(firstIndexInBar(Math.min(S.bars.length - 1, bi + 1)));
+    });
+
+    $('speed').addEventListener('input', function (e) {
+      S.speed = Number(e.target.value);
+      updateTransport();
+    });
+    $('speed').addEventListener('change', function () {
+      if (S.playing) { stopPlayback(); startPlayback(); }
+    });
+
+    $('loopA').addEventListener('click', function () {
+      const ev = S.flat[S.cur];
+      S.loopA = ev ? ev.barIndex : 0;
+      if (S.loopB != null && S.loopB < S.loopA) S.loopB = null;
+      markLoop(); updateTransport();
+      toast('A = ' + (S.loopA + 1) + '마디', 1400);
+    });
+    $('loopB').addEventListener('click', function () {
+      const ev = S.flat[S.cur];
+      S.loopB = ev ? ev.barIndex : 0;
+      if (S.loopA == null) S.loopA = S.loopB;
+      markLoop(); updateTransport();
+      const r = loopRange();
+      toast('반복 ' + (r.a + 1) + '–' + (r.b + 1) + '마디', 1600);
+    });
+    $('loopClear').addEventListener('click', function () {
+      S.loopA = null; S.loopB = null;
+      markLoop(); updateTransport();
+    });
+    $('metBtn').addEventListener('click', function () {
+      S.metronome = !S.metronome;
+      global.Guitar.resume();
+      updateTransport();
+    });
+
+    $('strip').addEventListener('click', function (e) {
+      const n = e.target.closest('.n');
+      if (n) { seekTo(Number(n.getAttribute('data-i'))); return; }
+      const bar = e.target.closest('.bar');
+      if (bar) {
+        const bi = Number(bar.getAttribute('data-bar'));
+        const idx = firstIndexInBar(bi);
+        if (idx < S.flat.length) seekTo(idx);
+      }
+    });
+
+    $('savedRow').addEventListener('click', async function (e) {
+      const del = e.target.closest('[data-del]');
+      if (del) {
+        const id = del.getAttribute('data-del');
+        await Store.del(id);
+        await refreshSaved();
+        if (S.lastId === id) localStorage.removeItem('fc_last');
+        return;
+      }
+      const chip = e.target.closest('.chip');
+      if (chip) {
+        const id = chip.getAttribute('data-id');
+        const rec = S.saved.find(function (s) { return s.id === id; });
+        if (!rec || !rec.data) return;
+        try {
+          const m = global.ScoreTools.loadFromBytes(rec.data, rec.name);
+          loadModel(m, { id: rec.id });
+          toast('불러왔습니다');
+        } catch (err) {
+          toast('저장된 파일을 읽지 못했습니다');
+        }
+      }
+    });
+
+    document.addEventListener('keydown', function (e) {
+      if (e.target && /INPUT|SELECT|TEXTAREA/.test(e.target.tagName)) return;
+      if (e.code === 'Space') { e.preventDefault(); $('playBtn').click(); }
+      else if (e.code === 'ArrowRight') seekTo(S.cur + 1);
+      else if (e.code === 'ArrowLeft') seekTo(S.cur - 1);
+      else if (e.code === 'ArrowDown') { e.preventDefault(); seekTo(firstIndexInBar((S.flat[S.cur] ? S.flat[S.cur].barIndex : 0) + 1)); }
+      else if (e.code === 'ArrowUp') { e.preventDefault(); seekTo(firstIndexInBar(Math.max(0, (S.flat[S.cur] ? S.flat[S.cur].barIndex : 0) - 1))); }
+    });
+
+    // 드래그 & 드롭
+    let dragDepth = 0;
+    window.addEventListener('dragenter', function (e) {
+      e.preventDefault(); dragDepth++; $('dropHint').hidden = false;
+    });
+    window.addEventListener('dragover', function (e) { e.preventDefault(); });
+    window.addEventListener('dragleave', function (e) {
+      dragDepth--; if (dragDepth <= 0) { dragDepth = 0; $('dropHint').hidden = true; }
+    });
+    window.addEventListener('drop', function (e) {
+      e.preventDefault(); dragDepth = 0; $('dropHint').hidden = true;
+      const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+      if (f) loadFile(f);
+    });
+  }
+
+  async function boot() {
+    bind();
+    $('speed').value = String(S.speed);
+    updateTransport();
+    await refreshSaved();
+    const lastId = localStorage.getItem('fc_last');
+    const rec = S.saved.find(function (s) { return s.id === lastId; });
+    if (rec && rec.data) {
+      try {
+        const m = global.ScoreTools.loadFromBytes(rec.data, rec.name);
+        loadModel(m, { id: rec.id });
+        return;
+      } catch (e) { /* 데모로 */ }
+    }
+    loadModel(global.DemoSong.build());
+  }
+
+  global.FretCoach = {
+    S: S,
+    loadFile: loadFile,
+    setMode: setMode,
+    debug: function () {
+      const tr = track();
+      const ev = S.flat[S.cur];
+      return {
+        title: S.score ? S.score.title : null,
+        tracks: S.score ? S.score.tracks.map(function (t) {
+          return { name: t.name, bars: t.bars.length, notes: t.noteCount, tuning: t.tuningText };
+        }) : [],
+        trackIndex: S.trackIndex,
+        bars: S.bars.length,
+        events: S.flat.length,
+        cur: S.cur,
+        curBar: ev ? ev.barIndex : null,
+        curEvent: ev ? {
+          tick: ev.tick,
+          engine: ev.engine,
+          shape: ev.shape ? ev.shape.name : null,
+          shapeLabel: ev.shapeLabel,
+          position: ev.position,
+          fingers: ev.fingers.map(function (f) { return f.string + '/' + f.fret + '/f' + f.finger; }),
+          ghosts: ev.ghosts.map(function (f) { return f.string + '/' + f.fret + '/f' + f.finger; })
+        } : null,
+        barChords: S.bars.map(function (b) { return (b.shapes || []).filter(Boolean).map(function (s) { return s.name; }).join('/') || null; }),
+        errors: global.__errors || []
+      };
+    }
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot);
+  } else {
+    boot();
+  }
+})(window);
