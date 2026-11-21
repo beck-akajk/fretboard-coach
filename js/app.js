@@ -122,8 +122,17 @@
   // ---------------------------------------------------------------- 지판
   function drawFretboard() {
     const svg = $('fretboard');
-    const W = 900, H = 250, LEFT = 70, RIGHT = 18, TOP = 46, BOT = 22;
-    const FRETS = 12;
+    const wrap = svg.parentElement;
+    const W = Math.max(300, Math.round((wrap.clientWidth || 360) - 10));
+    const narrow = W < 520;
+    const FRETS = narrow ? 7 : 12;
+    const H = narrow ? Math.round(W * 0.66) : 250;
+    svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+
+    const LEFT = narrow ? 48 : 70;
+    const RIGHT = narrow ? 10 : 18;
+    const TOP = narrow ? 32 : 46;
+    const BOT = narrow ? 16 : 22;
     const gap = (H - TOP - BOT) / 5;
     const fretW = (W - LEFT - RIGHT) / FRETS;
     const ev = S.flat[S.cur] || null;
@@ -140,10 +149,11 @@
       if (mx > start + FRETS - 1) start = Math.max(1, mx - FRETS + 1);
     }
 
+    const fs = narrow ? 10 : 11;      // 기본 글자
+    const rBadge = narrow ? 10.5 : 12;
     const out = [];
-    out.push('<defs><filter id="glow" x="-50%" y="-50%" width="200%" height="200%">' +
-      '<feGaussianBlur stdDeviation="3.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>');
-    out.push('<rect x="0" y="0" width="' + W + '" height="' + H + '" fill="none"/>');
+    out.push('<defs><filter id="glow" x="-60%" y="-60%" width="220%" height="220%">' +
+      '<feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>');
 
     // 포지션 브래킷
     if (ev && ev.engine === 'position' && ev.position != null) {
@@ -152,10 +162,10 @@
       if (p1 >= p0) {
         const x0 = LEFT + (p0 - start) * fretW;
         const x1 = LEFT + (p1 - start + 1) * fretW;
-        out.push('<rect x="' + x0.toFixed(1) + '" y="' + (TOP - 24) + '" width="' + (x1 - x0).toFixed(1) +
-          '" height="' + (H - TOP - BOT + 40) + '" rx="7" fill="rgba(255,182,77,.07)" stroke="rgba(255,182,77,.35)" stroke-dasharray="4 4"/>');
-        out.push('<text x="' + ((x0 + x1) / 2).toFixed(1) + '" y="' + (TOP - 28) +
-          '" text-anchor="middle" fill="rgba(255,182,77,.8)" font-size="10" font-weight="700">포지션 ' + ev.position + '프렛</text>');
+        out.push('<rect x="' + x0.toFixed(1) + '" y="' + (TOP - 18) + '" width="' + (x1 - x0).toFixed(1) +
+          '" height="' + (H - TOP - BOT + 30) + '" rx="7" fill="rgba(255,182,77,.07)" stroke="rgba(255,182,77,.35)" stroke-dasharray="4 4"/>');
+        out.push('<text x="' + ((x0 + x1) / 2).toFixed(1) + '" y="' + (TOP - 22) +
+          '" text-anchor="middle" fill="rgba(255,182,77,.85)" font-size="' + fs + '" font-weight="700">포지션 ' + ev.position + '프렛</text>');
       }
     }
 
@@ -163,20 +173,21 @@
     for (let k = 0; k < FRETS; k++) {
       const num = start + k;
       const cx = LEFT + (k + 0.5) * fretW;
-      const mark = [3, 5, 7, 9, 12, 15, 17, 19, 21].indexOf(num) >= 0;
-      out.push('<text x="' + cx.toFixed(1) + '" y="' + (TOP - 12) + '" text-anchor="middle" font-size="' +
-        (mark ? 12 : 10.5) + '" font-weight="' + (mark ? 700 : 500) + '" fill="' + (mark ? '#c9d3e6' : '#5f6879') + '">' + num + '</text>');
+      const mark = [3, 5, 7, 9, 12, 15, 17, 19].indexOf(num) >= 0;
+      out.push('<text x="' + cx.toFixed(1) + '" y="' + (TOP - 9) + '" text-anchor="middle" font-size="' +
+        (mark ? fs + 1 : fs - 0.5) + '" font-weight="' + (mark ? 700 : 500) + '" fill="' + (mark ? '#c9d3e6' : '#5f6879') + '">' + num + '</text>');
     }
 
     // 인레이
     for (let k = 0; k < FRETS; k++) {
       const num = start + k;
       const cx = LEFT + (k + 0.5) * fretW;
+      const rr = narrow ? 2.4 : 3;
       if (num === 12) {
-        out.push('<circle cx="' + cx.toFixed(1) + '" cy="' + (TOP + gap * 2).toFixed(1) + '" r="3" fill="#2c3547"/>');
-        out.push('<circle cx="' + cx.toFixed(1) + '" cy="' + (TOP + gap * 3).toFixed(1) + '" r="3" fill="#2c3547"/>');
-      } else if ([3, 5, 7, 9, 15, 17, 19, 21].indexOf(num) >= 0) {
-        out.push('<circle cx="' + cx.toFixed(1) + '" cy="' + (TOP + gap * 2.5).toFixed(1) + '" r="3" fill="#2c3547"/>');
+        out.push('<circle cx="' + cx.toFixed(1) + '" cy="' + (TOP + gap * 2).toFixed(1) + '" r="' + rr + '" fill="#2c3547"/>');
+        out.push('<circle cx="' + cx.toFixed(1) + '" cy="' + (TOP + gap * 3).toFixed(1) + '" r="' + rr + '" fill="#2c3547"/>');
+      } else if ([3, 5, 7, 9, 15, 17, 19].indexOf(num) >= 0) {
+        out.push('<circle cx="' + cx.toFixed(1) + '" cy="' + (TOP + gap * 2.5).toFixed(1) + '" r="' + rr + '" fill="#2c3547"/>');
       }
     }
 
@@ -184,42 +195,44 @@
     for (let k = 0; k <= FRETS; k++) {
       const x = LEFT + k * fretW;
       const isNut = (k === 0 && start === 1);
-      out.push('<line x1="' + x.toFixed(1) + '" y1="' + (TOP - 6) + '" x2="' + x.toFixed(1) + '" y2="' + (H - BOT + 6) +
-        '" stroke="' + (isNut ? '#dfe6f3' : '#39435a') + '" stroke-width="' + (isNut ? 5 : 1.2) + '"/>');
+      out.push('<line x1="' + x.toFixed(1) + '" y1="' + (TOP - 4) + '" x2="' + x.toFixed(1) + '" y2="' + (H - BOT + 4) +
+        '" stroke="' + (isNut ? '#dfe6f3' : '#39435a') + '" stroke-width="' + (isNut ? 4.5 : 1.1) + '"/>');
     }
 
     // 줄
     for (let s = 1; s <= 6; s++) {
       const y = TOP + rowOf(s) * gap;
-      const w = 1 + (6 - s) * 0.42;
-      out.push('<line x1="' + (LEFT - 6) + '" y1="' + y.toFixed(1) + '" x2="' + (W - RIGHT) + '" y2="' + y.toFixed(1) +
+      const w = 0.9 + (6 - s) * 0.38;
+      out.push('<line x1="' + (LEFT - 4) + '" y1="' + y.toFixed(1) + '" x2="' + (W - RIGHT) + '" y2="' + y.toFixed(1) +
         '" stroke="#5a6b85" stroke-width="' + w.toFixed(2) + '"/>');
     }
 
-    // 줄 이름 + 개방현 열
+    // 줄 이름 + 개방현 자리
     const tuning = (track() && track().tuning) || {};
     for (let s = 1; s <= 6; s++) {
       const y = TOP + rowOf(s) * gap;
       const midi = tuning[s];
       const name = midi == null ? '?' : NOTE_NAMES[((midi % 12) + 12) % 12];
-      out.push('<text x="8" y="' + (y + 4).toFixed(1) + '" font-size="10.5" font-weight="700" fill="#6b7690">' +
-        s + '·' + name + '</text>');
+      out.push('<text x="4" y="' + (y + 3.4).toFixed(1) + '" font-size="' + (narrow ? 8.5 : 10.5) +
+        '" font-weight="700" fill="#6b7690">' + s + '·' + name + '</text>');
     }
 
-    // 음 배지
     function badge(note, ghost) {
       const y = TOP + rowOf(note.string) * gap;
       let x;
-      if (note.fret === 0) x = LEFT - 26;
+      if (note.fret === 0) x = LEFT - (narrow ? 20 : 26);
       else x = LEFT + (note.fret - start + 0.5) * fretW;
       const label = note.finger ? String(note.finger) : (note.fret === 0 ? '0' : '·');
       if (ghost) {
-        out.push('<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="10.5" fill="rgba(120,135,165,.16)" stroke="#8b95a9" stroke-width="1.5" stroke-dasharray="3.5 2.5"/>');
-        out.push('<text x="' + x.toFixed(1) + '" y="' + (y + 3.8).toFixed(1) + '" text-anchor="middle" font-size="10" font-weight="700" fill="#b3bcce">' + (note.finger || '') + '</text>');
+        out.push('<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="' + (rBadge - 1.5).toFixed(1) +
+          '" fill="rgba(120,135,165,.16)" stroke="#8b95a9" stroke-width="1.4" stroke-dasharray="3.5 2.5"/>');
+        out.push('<text x="' + x.toFixed(1) + '" y="' + (y + 3.6).toFixed(1) + '" text-anchor="middle" font-size="' + (fs - 0.5) +
+          '" font-weight="700" fill="#b3bcce">' + (note.finger || '') + '</text>');
       } else {
         const c = colorOf(note.finger);
-        out.push('<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="12" fill="' + c + '" filter="url(#glow)" opacity="0.97"/>');
-        out.push('<text x="' + x.toFixed(1) + '" y="' + (y + 4.2).toFixed(1) + '" text-anchor="middle" font-size="11.5" font-weight="800" fill="#0b0e14">' + label + '</text>');
+        out.push('<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="' + rBadge + '" fill="' + c + '" filter="url(#glow)" opacity="0.97"/>');
+        out.push('<text x="' + x.toFixed(1) + '" y="' + (y + rBadge * 0.36).toFixed(1) + '" text-anchor="middle" font-size="' +
+          (rBadge * 0.95).toFixed(1) + '" font-weight="800" fill="#0b0e14">' + label + '</text>');
       }
     }
 
@@ -227,9 +240,9 @@
     fingers.forEach(function (f) { badge(f, false); });
 
     if (!ev) {
-      out.push('<text x="' + (W / 2) + '" y="' + (H / 2) + '" text-anchor="middle" font-size="13" fill="#4d5668">이 부분에는 연주할 음이 없습니다</text>');
+      out.push('<text x="' + (W / 2) + '" y="' + (H / 2) + '" text-anchor="middle" font-size="12" fill="#4d5668">이 부분에는 연주할 음이 없습니다</text>');
     } else if (fingers.length && !ghosts.length && fingers.every(function (f) { return f.fret === 0; })) {
-      out.push('<text x="' + (LEFT + 90) + '" y="' + (H - 4) + '" font-size="10.5" fill="#6b7690">모두 개방현</text>');
+      out.push('<text x="' + (LEFT + 70) + '" y="' + (H - 3) + '" font-size="9.5" fill="#6b7690">모두 개방현</text>');
     }
 
     svg.innerHTML = out.join('');
@@ -796,6 +809,12 @@
       else if (e.code === 'ArrowLeft') seekTo(S.cur - 1);
       else if (e.code === 'ArrowDown') { e.preventDefault(); seekTo(firstIndexInBar((S.flat[S.cur] ? S.flat[S.cur].barIndex : 0) + 1)); }
       else if (e.code === 'ArrowUp') { e.preventDefault(); seekTo(firstIndexInBar(Math.max(0, (S.flat[S.cur] ? S.flat[S.cur].barIndex : 0) - 1))); }
+    });
+
+    let rzTimer = 0;
+    window.addEventListener('resize', function () {
+      clearTimeout(rzTimer);
+      rzTimer = setTimeout(function () { drawFretboard(); }, 150);
     });
 
     // 드래그 & 드롭
