@@ -46,6 +46,21 @@
 - [alphaTab](https://www.alphatab.net/) 1.9.0 — Guitar Pro 3/4/5 파싱 (MPL-2.0, `vendor/alphaTab.min.js`)
 - 운지 추천 엔진·지판/타브 렌더링·오디오는 직접 구현
 
+## 폰에서 쓰기
+
+1. 폰 브라우저(크롬)로 https://beck-akajk.github.io/fretboard-coach/ 열기
+2. 메뉴 → **홈 화면에 추가** (PWA 매니페스트·서비스 워커가 들어 있어 앱처럼 열리고, 한 번 연 뒤에는 오프라인에서도 열립니다)
+3. 한 번 올린 .gp 파일은 기기 브라우저 저장소(IndexedDB)에 남아 다음에 칩으로 바로 불러올 수 있습니다.
+
+> 나중에 APK로 만들 때는 `소이의하루`처럼 이 URL을 WebView로 감싸면 됩니다(별도 서버·로그인 없음).
+
+## 개발 메모
+
+- 빌드 없음. `index.html` + `css/` + `js/` + `vendor/`(alphaTab) 그대로 정적 호스팅.
+- `mobile.html` — 데스크톱에서 390×844 폰 화면으로 확인하는 보조 페이지.
+- 파일을 고친 뒤에는 `index.html`의 `?v=` 값을 올려 캐시를 갱신하세요.
+- 운지 엔진: `js/chords.js`(코드 폼 사전·매칭 점수), `js/finger.js`(구간 분할·손가락 배정·포지션 DP), `js/score.js`(GP 파싱 정규화).
+
 ## 참고
 
 - 악보 파일과 연습 기록은 브라우저 안에만 있습니다.
