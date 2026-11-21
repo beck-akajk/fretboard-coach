@@ -303,7 +303,7 @@
       bits.push('기준 폼 ' + ev.shape.name + ' 유지');
       const extras = ev.fingers.filter(function (f) { return f.kind === 'extra'; });
       if (extras.length) {
-        bits.push('폼 밖 음은 ' + extras.map(function (f) { return f.finger ? f.finger + '번' : '이동'; }).join('·'));
+        bits.push('폼 밖 음은 ' + extras.map(function (f) { return f.finger ? f.finger + '번 손가락' : '손을 옮겨 짚기'; }).join('·'));
       }
       if (ev.ghosts.length) bits.push('나머지 ' + ev.ghosts.length + '개 손가락은 그대로');
     } else {
@@ -340,7 +340,7 @@
       const bar = b.bar;
       const evs = b.events;
       const slots = Math.max(4, Math.min(16, evs.length || bar.tsNum * 2));
-      const width = Math.max(58, 16 + slots * 12);
+      const width = Math.max(64, 20 + slots * 13);
       const names = (b.shapes || []).filter(Boolean).map(function (s) { return s.name; });
       html += '<div class="bar" data-bar="' + bi + '" style="width:' + width + 'px">';
       html += '<div class="bar-chord">' + esc(names.join(' / ')) + '</div>';
@@ -356,8 +356,9 @@
             if (ev.fingers[fi].string === n.string) { finger = ev.fingers[fi].finger; break; }
           }
           const top = 6 + rowOf(n.string) * 12.4;
+          const lp = 4 + (left / 100) * 92;
           html += '<span class="n' + (n.fret === 0 ? ' open' : '') + '" data-i="' + ev.gi + '" style="left:' +
-            left.toFixed(2) + '%;top:' + top.toFixed(1) + 'px;color:' + colorOf(finger) + '">' +
+            lp.toFixed(2) + '%;top:' + top.toFixed(1) + 'px;color:' + colorOf(finger) + '">' +
             (n.fret === 0 ? '0' : n.fret) + '</span>';
         }
       }
