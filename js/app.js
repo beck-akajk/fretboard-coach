@@ -131,7 +131,7 @@
 
     const LEFT = narrow ? 48 : 70;
     const RIGHT = narrow ? 10 : 18;
-    const TOP = narrow ? 32 : 46;
+    const TOP = narrow ? 42 : 56;
     const BOT = narrow ? 16 : 22;
     const gap = (H - TOP - BOT) / 5;
     const fretW = (W - LEFT - RIGHT) / FRETS;
@@ -174,7 +174,7 @@
       const num = start + k;
       const cx = LEFT + (k + 0.5) * fretW;
       const mark = [3, 5, 7, 9, 12, 15, 17, 19].indexOf(num) >= 0;
-      out.push('<text x="' + cx.toFixed(1) + '" y="' + (TOP - 9) + '" text-anchor="middle" font-size="' +
+      out.push('<text x="' + cx.toFixed(1) + '" y="' + (TOP - 15) + '" text-anchor="middle" font-size="' +
         (mark ? fs + 1 : fs - 0.5) + '" font-weight="' + (mark ? 700 : 500) + '" fill="' + (mark ? '#c9d3e6' : '#5f6879') + '">' + num + '</text>');
     }
 
@@ -340,7 +340,7 @@
       const bar = b.bar;
       const evs = b.events;
       const slots = Math.max(4, Math.min(16, evs.length || bar.tsNum * 2));
-      const width = Math.max(64, 20 + slots * 13);
+      const width = Math.max(68, 26 + slots * 15);
       const names = (b.shapes || []).filter(Boolean).map(function (s) { return s.name; });
       html += '<div class="bar" data-bar="' + bi + '" style="width:' + width + 'px">';
       html += '<div class="bar-chord">' + esc(names.join(' / ')) + '</div>';
