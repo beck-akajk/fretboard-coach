@@ -653,7 +653,7 @@
     capoEl.textContent = capo ? '카포 ' + capo : '';
     const warn = $('tuningWarn');
     warn.hidden = !info.alt;
-    warn.textContent = info.custom ? '목록에 없는 튜닝' : '줄 다시 맞추기';
+    warn.textContent = info.alt ? (info.custom ? '목록에 없는 튜닝' : '줄 다시 맞추기') : '';
     badge.classList.toggle('alt', !!info.alt);
     badge.classList.toggle('custom', !!info.custom);
     badge.setAttribute('title', info.name + ' · ' + info.ko + ' · ' + info.notes.join(' ') +
