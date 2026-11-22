@@ -736,12 +736,29 @@
     updateTransport();
   }
 
+  function clampSpeed(v) {
+    if (!isFinite(v)) return 1;
+    return Math.max(0.2, Math.min(1, v));
+  }
+
+  // 슬라이더 대신 칩으로 속도를 고를 때 — 재생 중이면 그 속도로 이어서 다시 시작한다
+  function setSpeed(v) {
+    S.speed = clampSpeed(v);
+    const el = $('speed');
+    if (el) el.value = String(S.speed);
+    if (S.playing) { stopPlayback(); updateTransport(); startPlayback(); }
+    else updateTransport();
+  }
+
   function updateTransport() {
     const ev = S.flat[S.cur];
     const b = ev ? barOf(ev.barIndex) : null;
     const tempo = b ? b.tempo : (S.score ? S.score.tempo : 120);
     $('bpmVal').textContent = Math.round(tempo * S.speed) + ' BPM';
     $('speedVal').textContent = S.speed.toFixed(2).replace(/0$/, '') + 'x';
+    document.querySelectorAll('#speedPresets button').forEach(function (b2) {
+      b2.classList.toggle('on', Math.abs(Number(b2.getAttribute('data-speed')) - S.speed) < 0.001);
+    });
     const r = loopRange();
     $('loopVal').textContent = S.loopA == null ? '없음' :
       (r.a + 1) + '–' + (r.b + 1) + '마디';
@@ -1077,11 +1094,16 @@
     });
 
     $('speed').addEventListener('input', function (e) {
-      S.speed = Number(e.target.value);
+      S.speed = clampSpeed(Number(e.target.value));
       updateTransport();
     });
     $('speed').addEventListener('change', function () {
       if (S.playing) { stopPlayback(); startPlayback(); }
+    });
+    // 느린 연습 속도 빠른 선택(0.2× ~ 1×)
+    $('speedPresets').addEventListener('click', function (e) {
+      const b = e.target.closest('button[data-speed]');
+      if (b) setSpeed(Number(b.getAttribute('data-speed')));
     });
 
     $('loopA').addEventListener('click', function () {

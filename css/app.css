@@ -208,6 +208,13 @@ main{display:flex;flex-direction:column;gap:10px;margin-top:10px}
 .speed-row input[type=range]{flex:1;accent-color:var(--accent);height:26px}
 .speed-row .val{font-size:12px;font-weight:800;color:var(--accent);min-width:40px;text-align:right}
 .speed-row .bpm{font-size:11px;color:var(--muted);min-width:62px;text-align:right}
+.speed-presets{display:flex;gap:5px}
+.speed-presets button{
+  flex:1;padding:5px 0;border-radius:8px;border:1px solid var(--line);background:transparent;
+  color:var(--muted);font-family:inherit;font-size:11px;font-weight:700;cursor:pointer;letter-spacing:-.2px;
+}
+.speed-presets button:active{transform:scale(.97)}
+.speed-presets button.on{border-color:var(--accent);color:var(--accent);background:rgba(255,182,77,.12)}
 .loop-row .loop-val{flex:1;font-size:11.5px;color:var(--muted)}
 
 /* ---------- diag ---------- */
