@@ -77,12 +77,25 @@
     const frets = shape.frets;
     const fingers = shape.fingers;
     const pressedF = frets.filter(function (f) { return f > 0; });
+    const list = [];
+    for (let i = 0; i < 6; i++) {
+      if (frets[i] > 0 && fingers[i] > 0) list.push({ string: 6 - i, fret: frets[i], finger: fingers[i] });
+    }
+    const barres = barreGroups(list);
+    const inBarre = {};
+    barres.forEach(function (b) {
+      b.strings.forEach(function (s) { inBarre[s + ':' + b.fret] = true; });
+    });
+
+    // 시작 프렛: 바레 폼은 바레 프렛부터 보여 준다(2fr·3fr …)
+    const barre0 = barres.filter(function (b) { return b.finger === 1; })[0] || barres[0] || null;
     let start = 1;
     let rows = 5;
     if (pressedF.length) {
       const mn = Math.min.apply(null, pressedF);
       const mx = Math.max.apply(null, pressedF);
-      start = (mn > 2 || mx > 4) ? mn : 1;
+      if (barre0 && barre0.fret >= 2) start = barre0.fret;
+      else start = (mn > 2 || mx > 4) ? mn : 1;
       const need = mx - start + 1;
       rows = need > 5 ? Math.min(6, need) : 5;
     }
@@ -95,16 +108,6 @@
     const y0 = padT, y1 = padT + rows * rowH;
     const X = function (i) { return x0 + i * sx; };            // i = 0(6번줄) … 5(1번줄)
     const Y = function (fret) { return y0 + (fret - start + 0.5) * rowH; };
-
-    const list = [];
-    for (let i = 0; i < 6; i++) {
-      if (frets[i] > 0 && fingers[i] > 0) list.push({ string: 6 - i, fret: frets[i], finger: fingers[i] });
-    }
-    const barres = barreGroups(list);
-    const inBarre = {};
-    barres.forEach(function (b) {
-      b.strings.forEach(function (s) { inBarre[s + ':' + b.fret] = true; });
-    });
 
     const out = [];
     out.push('<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + esc(shape.name) + ' 코드 운지표">');
