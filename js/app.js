@@ -103,9 +103,9 @@
       cols = need > 5 ? Math.min(6, need) : 5;
     }
 
-    const W = 136;
-    const padT = 13, padB = 6, padL = 16, padR = 5;
-    const rowH = 9.4;
+    const W = 144;
+    const padT = 14, padB = 7, padL = 18, padR = 6;
+    const rowH = 10.2;
     const H = padT + 5 * rowH + padB;
     const x0 = padL, x1 = W - padR;
     const y0 = padT;
@@ -168,16 +168,19 @@
       out.push('<text x="' + cx.toFixed(1) + '" y="' + ((yT + yBot) / 2 + 2.4).toFixed(1) +
         '" text-anchor="middle" font-size="7.4" font-weight="800" fill="#0b0e14">' + b.finger + '</text>');
     });
-    // 손가락 점
+    // 손가락 점 : 누르는 자리(진한 점) + 그 아래로 이어지는 손가락 몸통 힌트
     list.forEach(function (n) {
       if (inBarre[n.string + ':' + n.fret]) return;
       const cx = X(n.fret);
       const cy = Y(n.string);
-      const r = rowH * 0.44;
+      const r = rowH * 0.46;
       const c = colorOf(n.finger);
-      out.push('<circle cx="' + cx.toFixed(1) + '" cy="' + cy.toFixed(1) + '" r="' + r.toFixed(1) + '" fill="' + c + '"/>');
-      out.push('<text x="' + cx.toFixed(1) + '" y="' + (cy + r * 0.4).toFixed(1) + '" text-anchor="middle" font-size="' +
-        (r * 1.15).toFixed(1) + '" font-weight="800" fill="#0b0e14">' + n.finger + '</text>');
+      out.push('<rect x="' + (cx - r * 0.5).toFixed(1) + '" y="' + (cy + r * 0.4).toFixed(1) + '" width="' + (r).toFixed(1) +
+        '" height="' + (rowH * 0.5).toFixed(1) + '" rx="' + (r * 0.5).toFixed(1) + '" fill="' + c + '" opacity="0.3"/>');
+      out.push('<circle cx="' + cx.toFixed(1) + '" cy="' + cy.toFixed(1) + '" r="' + r.toFixed(1) + '" fill="' + c +
+        '" stroke="#0b0e14" stroke-width="0.8"/>');
+      out.push('<text x="' + cx.toFixed(1) + '" y="' + (cy + r * 0.42).toFixed(1) + '" text-anchor="middle" font-size="' +
+        (r * 1.25).toFixed(1) + '" font-weight="800" fill="#0b0e14">' + n.finger + '</text>');
     });
     out.push('</svg>');
     return out.join('');
@@ -200,7 +203,7 @@
     for (let bi = 0; bi < tr.bars.length; bi++) {
       const r = global.Finger.analyzeBar(tr.bars[bi], tr, S.mode, prevShape);
       prevShape = r.prevShape;
-      bars.push({ bar: tr.bars[bi], events: r.events, shapes: r.shapes });
+      bars.push({ bar: tr.bars[bi], events: r.events, shapes: r.shapes, refShapes: r.refShapes || r.shapes });
     }
     let gi = 0;
     const flat = [];
@@ -265,16 +268,14 @@
     const wrap = svg.parentElement;
     const W = Math.max(300, Math.round((wrap.clientWidth || 360) - 10));
     const narrow = W < 520;
-    const FRETS = narrow ? 7 : 12;
-    const H = narrow ? Math.round(W * 0.66) : 250;
+    const H = narrow ? Math.round(W * 0.6) : 250;
     svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
 
-    const LEFT = narrow ? 48 : 70;
-    const RIGHT = narrow ? 10 : 18;
-    const TOP = narrow ? 42 : 56;
-    const BOT = narrow ? 16 : 22;
+    const LEFT = narrow ? 46 : 70;
+    const RIGHT = narrow ? 8 : 18;
+    const TOP = narrow ? 38 : 56;
+    const BOT = narrow ? 14 : 22;
     const gap = (H - TOP - BOT) / 5;
-    const fretW = (W - LEFT - RIGHT) / FRETS;
     const ev = S.flat[S.cur] || null;
     const fingers = ev ? ev.fingers : [];
     const ghosts = ev ? ev.ghosts : [];
@@ -304,26 +305,17 @@
       }
     }
 
-    // 지판에 보이는 프렛 범위 — 마디 안 음이 한 화면에 다 들어오면 그 범위를 함께 보여 준다.
-    function spanStart(list) {
-      const fs2 = list.filter(function (f) { return f.fret > 0; }).map(function (f) { return f.fret; });
-      if (!fs2.length) return 1;
-      const mn = Math.min.apply(null, fs2);
-      const mx = Math.max.apply(null, fs2);
-      let s2 = mn > 1 ? mn - 1 : 1;
-      if (mx > s2 + FRETS - 1) s2 = mx - FRETS + 1;
-      return Math.max(1, s2);
-    }
-    const curNotes = fingers.concat(ghosts);
-    const barNotes = curNotes.concat(upcoming).concat(passed);
-    const barFrets = barNotes.filter(function (f) { return f.fret > 0; }).map(function (f) { return f.fret; });
-    let start = spanStart(curNotes);
-    if (barFrets.length > 1 && Math.max.apply(null, barFrets) - Math.min.apply(null, barFrets) <= FRETS - 1) {
-      start = spanStart(barNotes);
-    }
-
-    const fs = narrow ? 10 : 11;      // 기본 글자
-    const rBadge = narrow ? 10.5 : 12;
+    // 지판은 1~12프렛을 항상 같은 자리에 고정으로 보여 준다(실제 기타 넥과 같은 위치 감각).
+    // 12프렛을 넘는 음이 나오는 마디에서만 그 음이 들어오도록 프렛 범위를 넓힌다.
+    const barFretList = fingers.concat(ghosts, upcoming, passed)
+      .filter(function (f) { return f.fret > 0; })
+      .map(function (f) { return f.fret; });
+    const maxFret = barFretList.length ? Math.max.apply(null, barFretList) : 0;
+    const FRETS = Math.max(12, Math.min(17, maxFret || 12));
+    const start = maxFret > 17 ? maxFret - 16 : 1;
+    const fretW = (W - LEFT - RIGHT) / FRETS;
+    const fs = Math.min(narrow ? 10 : 11, Math.max(6.8, fretW * 0.44));   // 기본 글자
+    const rBadge = Math.min(narrow ? 10.5 : 12, fretW * 0.4);
     const out = [];
     out.push('<defs><filter id="glow" x="-60%" y="-60%" width="220%" height="220%">' +
       '<feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>');
@@ -565,16 +557,21 @@
       return;
     }
 
-    if (ev.shape) {
-      chordNameEl.textContent = ev.shape.name;
+    // 포지션 모드라도 이 마디에 판별된 코드가 있으면 코드명·미니 코드표를 함께 보여 준다
+    const refShape = ev.shape || ev.barShape || null;
+    const capEl = $('chordCap');
+    if (refShape) {
+      chordNameEl.textContent = refShape.name;
       chordNameEl.style.color = '#fff';
-      chordShapeEl.textContent = ev.shapeLabel + ' · ' + ev.shape.form;
-      chordDiagEl.innerHTML = chordDiagramSVG(ev.shape);
+      chordShapeEl.textContent = (ev.shapeLabel || '') + ' · ' + refShape.form;
+      chordDiagEl.innerHTML = chordDiagramSVG(refShape);
+      if (capEl) capEl.textContent = ev.shape ? '기준 코드 폼' : '이 마디 코드 · 참고';
     } else {
       chordNameEl.textContent = ev.engine === 'position' ? '포지션' : '—';
       chordNameEl.style.color = '#c9d3e6';
       chordShapeEl.textContent = '1번 손가락 ' + ev.position + '프렛';
       chordDiagEl.innerHTML = '';
+      if (capEl) capEl.textContent = '기준 코드 폼';
     }
 
     const parts = ev.fingers.slice()
@@ -599,6 +596,7 @@
       if (ev.ghosts.length) bits.push('나머지 ' + ev.ghosts.length + '개 손가락은 그대로');
     } else {
       bits.push('포지션 ' + ev.position + '프렛 (1번 손가락 기준)');
+      if (ev.barShape) bits.push('이 마디 코드 ' + ev.barShape.name + ' 참고');
     }
     const mv = movesOf(ev, prev);
     if (mv.length && prev && prev.engine === ev.engine) {
@@ -640,7 +638,8 @@
       const evs = b.events;
       const slots = Math.max(4, Math.min(16, evs.length || bar.tsNum * 2));
       const width = Math.max(68, 26 + slots * 15);
-      const names = (b.shapes || []).filter(Boolean).map(function (s) { return s.name; });
+      const names = ((b.refShapes && b.refShapes.length ? b.refShapes : b.shapes) || [])
+        .filter(Boolean).map(function (s) { return s.name; });
       html += '<div class="bar" data-bar="' + bi + '" style="width:' + width + 'px">';
       html += '<div class="bar-chord">' + esc(names.join(' / ')) + '</div>';
       html += '<div class="bar-num">' + (bi + 1) + '</div>';

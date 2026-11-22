@@ -191,6 +191,12 @@
 
     const out = [];
     let lastShape = prevShape;
+    // 포지션 모드에서도 카드에 보여 줄 '이 마디 코드'를 따로 찾는다(운지 계산에는 영향 없음)
+    let refShape = null;
+    if (!shapes.some(Boolean) && mode === 'position') {
+      const m = C.matchChord(segNotesOf(events, 0, events.length - 1), null, 0.5, open);
+      refShape = m ? m.shape : null;
+    }
     for (let si = 0; si < segs.length; si++) {
       const seg = segs[si];
       const shape = shapes[si] || null;
@@ -225,14 +231,21 @@
             fingers: pp.fingers,
             ghosts: [],
             shape: null,
-            shapeLabel: '',
+            barShape: refShape,
+            shapeLabel: refShape ? C.shapeLabel(refShape) : '',
             position: pp.position,
             engine: 'position'
           });
         }
       }
     }
-    return { events: out, shapes: shapes, prevShape: lastShape };
+    return {
+      events: out,
+      shapes: shapes,
+      // 화면 표시용 코드 목록 : 포지션 모드에서도 이 마디 코드가 있으면 함께 돌려준다
+      refShapes: shapes.some(Boolean) ? shapes : (refShape ? [refShape] : []),
+      prevShape: lastShape
+    };
   }
 
   global.Finger = {
