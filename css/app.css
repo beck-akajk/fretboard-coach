@@ -79,15 +79,19 @@ main{display:flex;flex-direction:column;gap:10px;margin-top:10px}
 .panel{background:var(--panel);border:1px solid var(--line-soft);border-radius:var(--radius);padding:12px}
 .now-panel{padding:12px 10px 8px}
 
-.now-head{display:flex;gap:10px;align-items:stretch}
+.now-head{display:flex;gap:10px;align-items:stretch;flex-wrap:wrap}
 .chord-box{
-  min-width:104px;padding:8px 10px;border-radius:12px;
+  min-width:110px;padding:8px 9px;border-radius:12px;
   background:linear-gradient(160deg,#232b3d,#1a1f2b);border:1px solid #303952;
-  display:flex;flex-direction:column;justify-content:center;
+  display:flex;align-items:center;gap:8px;
 }
-.chord-cap{font-size:9.5px;letter-spacing:.1em;color:var(--dim);font-weight:700}
-.chord-name{font-size:24px;font-weight:800;letter-spacing:-.5px;line-height:1.1;margin-top:2px;color:#fff}
-.chord-shape{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:10px;color:var(--muted);margin-top:3px;letter-spacing:.5px}
+.chord-info{display:flex;flex-direction:column;justify-content:center;min-width:0}
+.chord-cap{font-size:9.5px;letter-spacing:.1em;color:var(--dim);font-weight:700;white-space:nowrap}
+.chord-name{font-size:23px;font-weight:800;letter-spacing:-.5px;line-height:1.1;margin-top:2px;color:#fff}
+.chord-shape{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:9.5px;color:var(--muted);margin-top:3px;letter-spacing:.3px;white-space:nowrap}
+.chord-diagram{flex:0 0 auto;margin-left:auto;width:92px}
+.chord-diagram:empty{display:none}
+.chord-diagram svg{display:block;width:100%;height:auto;overflow:visible}
 .now-text{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;gap:3px}
 .hint-main{font-size:14.5px;font-weight:700;line-height:1.35;color:#fff}
 .hint-main .f1{color:var(--f1)} .hint-main .f2{color:var(--f2)}
@@ -103,7 +107,16 @@ main{display:flex;flex-direction:column;gap:10px;margin-top:10px}
 .legend .dot{width:16px;height:16px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-style:normal;font-size:9.5px;font-weight:800;color:#0b0e14}
 .legend .f1{background:var(--f1)} .legend .f2{background:var(--f2)}
 .legend .f3{background:var(--f3)} .legend .f4{background:var(--f4)}
-.legend .ghost{background:transparent;border:1.5px dashed var(--dim);color:var(--dim)}
+.legend .pad{width:22px;height:13px;border-radius:7px;border:1.2px solid #7a86a0;background:rgba(120,135,165,.2)}
+.legend .barre{width:9px;height:17px;border-radius:5px;border:1.2px solid #5b9ede;background:rgba(74,158,255,.26)}
+
+/* 폰 폭: 코드 카드를 한 줄 전체로 넓혀 지판 그림과 안내가 겹치지 않게 */
+@media (max-width:560px){
+  .now-head{flex-direction:column;gap:8px}
+  .chord-box{width:100%}
+  .chord-diagram{width:104px}
+  .now-text{width:100%}
+}
 
 /* ---------- tab strip ---------- */
 .tab-head{display:flex;justify-content:space-between;align-items:baseline;font-size:10.5px;letter-spacing:.1em;color:var(--dim);font-weight:700;margin-bottom:6px}

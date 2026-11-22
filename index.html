@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0f1115">
 <title>프렛 코치 · 기타 타브 운지</title>
-<link rel="stylesheet" href="css/app.css?v=20261122d">
+<link rel="stylesheet" href="css/app.css?v=20261122e">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -51,9 +51,12 @@
     <section class="panel now-panel">
       <div class="now-head">
         <div class="chord-box">
-          <div class="chord-cap">기준 코드 폼</div>
-          <div class="chord-name" id="chordName">—</div>
-          <div class="chord-shape" id="chordShape"></div>
+          <div class="chord-info">
+            <div class="chord-cap">기준 코드 폼</div>
+            <div class="chord-name" id="chordName">—</div>
+            <div class="chord-shape" id="chordShape"></div>
+          </div>
+          <div class="chord-diagram" id="chordDiagram" aria-live="polite"></div>
         </div>
         <div class="now-text">
           <div class="hint-main" id="hintMain">음표를 고르면 운지가 나옵니다</div>
@@ -71,7 +74,8 @@
         <span class="lg"><i class="dot f2">2</i>중지</span>
         <span class="lg"><i class="dot f3">3</i>약지</span>
         <span class="lg"><i class="dot f4">4</i>소지</span>
-        <span class="lg"><i class="dot ghost">○</i>유지(고스트)</span>
+        <span class="lg"><i class="pad ghost"></i>유지(흐릿)</span>
+        <span class="lg"><i class="barre"></i>바레</span>
       </div>
     </section>
 
@@ -133,11 +137,11 @@ window.addEventListener('unhandledrejection', function (e) {
 });
 </script>
 <script src="vendor/alphaTab.min.js"></script>
-<script src="js/chords.js?v=20261122d"></script>
-<script src="js/finger.js?v=20261122d"></script>
-<script src="js/demo.js?v=20261122d"></script>
-<script src="js/score.js?v=20261122d"></script>
-<script src="js/audio.js?v=20261122d"></script>
-<script src="js/app.js?v=20261122d"></script>
+<script src="js/chords.js?v=20261122e"></script>
+<script src="js/finger.js?v=20261122e"></script>
+<script src="js/demo.js?v=20261122e"></script>
+<script src="js/score.js?v=20261122e"></script>
+<script src="js/audio.js?v=20261122e"></script>
+<script src="js/app.js?v=20261122e"></script>
 </body>
 </html>
