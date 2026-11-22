@@ -468,7 +468,7 @@
     if (f.fret === 0) return '개방현 ' + f.string + '번줄';
     const fl = f.finger ? '<span class="f' + f.finger + '">' + f.finger + '번 ' + FINGER_NAME[f.finger] + '</span>' : '';
     const tag = f.kind === 'barre' ? ' <span class="barre-tag">바레</span>' : '';
-    return (fl ? fl + ' · ' : '') + f.string + '번줄 ' + f.fret + '프렛' + tag;
+    return (fl ? fl + tag : '') + (fl ? ' · ' : '') + f.string + '번줄 ' + f.fret + '프렛';
   }
 
   function movesOf(ev, prev) {
