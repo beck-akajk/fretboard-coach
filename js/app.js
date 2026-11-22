@@ -852,6 +852,7 @@
       localStorage.setItem('fc_last', opts.id);
     }
     renderSaved();
+    document.dispatchEvent(new CustomEvent('fc:loaded'));
   }
 
   function renderDiag() {
@@ -946,10 +947,25 @@
       await Store.put({ id: id, name: file.name, data: buf, at: Date.now() });
       await refreshSaved();
       toast('불러왔습니다 · 마디 ' + (track() ? track().bars.length : 0) + '개');
+      // 보관함: 연 곡을 구글 드라이브에도 조용히 올려 다른 기기에서 바로 꺼낼 수 있게 한다
+      if (global.Drive && global.Drive.onLocalFile) global.Drive.onLocalFile(file.name, buf);
     } catch (e) {
       console.error(e);
       toast('이 파일은 읽지 못했습니다 · gp3/gp4/gp5 형식인지 확인해 주세요', 4200);
     }
+  }
+
+  // 드라이브 보관함에서 받은 bytes를 바로 연다 (Base64 해제는 drive.js가 한다)
+  function loadBytes(buf, name, opts) {
+    const m = global.ScoreTools.loadFromBytes(buf, name);
+    const id = (opts && opts.id) || (name + ':' + buf.byteLength);
+    loadModel(m, { id: id });
+    try {
+      Store.put({ id: id, name: name, data: buf, at: Date.now() }).then(refreshSaved);
+    } catch (e) { /* 로컬 저장 실패는 무시 — 화면에는 이미 열렸다 */ }
+    if (global.Drive && global.Drive.S) global.Drive.S.openId = (opts && opts.id && String(opts.id).indexOf('drive:') === 0)
+      ? String(opts.id).slice(6) : null;
+    return m;
   }
 
   // ---------------------------------------------------------------- 초기화
@@ -1120,7 +1136,9 @@
   global.FretCoach = {
     S: S,
     loadFile: loadFile,
+    loadBytes: loadBytes,
     setMode: setMode,
+    toast: toast,
     debug: function () {
       const tr = track();
       const ev = S.flat[S.cur];

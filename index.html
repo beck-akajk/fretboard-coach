@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0f1115">
 <title>프렛 코치 · 기타 타브 운지</title>
-<link rel="stylesheet" href="css/app.css?v=20261122o">
+<link rel="stylesheet" href="css/app.css?v=20261122p">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -59,6 +59,24 @@
   </header>
 
   <main>
+    <section class="panel drive" id="drivePanel">
+      <div class="drive-top">
+        <div class="drive-heading">
+          <span class="drive-ico" aria-hidden="true">☁️</span>
+          <div class="drive-text">
+            <div class="drive-title">내 악보 보관함</div>
+            <div class="drive-sub" id="driveSub">구글 드라이브 · 프렛 코치</div>
+          </div>
+        </div>
+        <div class="drive-acts">
+          <button id="driveRefresh" class="btn btn-mini" type="button" title="드라이브 목록 새로고침">새로고침</button>
+          <button id="driveUpload" class="btn btn-mini on" type="button" title="악보를 드라이브에 올리고 바로 열기">＋ 올리기</button>
+        </div>
+      </div>
+      <div class="drive-status" id="driveStatus" hidden></div>
+      <div class="drive-list" id="driveList" aria-live="polite"></div>
+    </section>
+
     <section class="panel now-panel">
       <div class="now-head">
         <div class="chord-box">
@@ -130,7 +148,8 @@
     </details>
 
     <p class="foot-note">
-      올린 .gp3 / .gp4 / .gp5 파일은 서버로 가지 않고 이 브라우저 안에서만 읽습니다. 저장한 곡은 이 기기의 브라우저 저장소에 남습니다.
+      열어 본 악보는 이 브라우저 안에서 읽고, 이 기기의 저장소에도 남습니다.<br>
+      ‘내 악보 보관함’에 올린 곡만 내 구글 드라이브 ‘프렛 코치’ 폴더에 저장되어 폰과 노트북에서 함께 열립니다.
     </p>
   </main>
 
@@ -148,12 +167,13 @@ window.addEventListener('unhandledrejection', function (e) {
 });
 </script>
 <script src="vendor/alphaTab.min.js"></script>
-<script src="js/tuning.js?v=20261122o"></script>
-<script src="js/chords.js?v=20261122o"></script>
-<script src="js/finger.js?v=20261122o"></script>
-<script src="js/demo.js?v=20261122o"></script>
-<script src="js/score.js?v=20261122o"></script>
-<script src="js/audio.js?v=20261122o"></script>
-<script src="js/app.js?v=20261122o"></script>
+<script src="js/tuning.js?v=20261122p"></script>
+<script src="js/chords.js?v=20261122p"></script>
+<script src="js/finger.js?v=20261122p"></script>
+<script src="js/demo.js?v=20261122p"></script>
+<script src="js/score.js?v=20261122p"></script>
+<script src="js/audio.js?v=20261122p"></script>
+<script src="js/app.js?v=20261122p"></script>
+<script src="js/drive.js?v=20261122p"></script>
 </body>
 </html>
