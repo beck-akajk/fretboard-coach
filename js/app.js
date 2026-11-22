@@ -115,12 +115,12 @@
     const out = [];
     out.push('<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + esc(shape.name) + ' 코드 운지표">');
 
-    // 프렛 번호 (위)
-    for (let k = 0; k < cols; k++) {
+    // 프렛 번호 (위) — 시작 프렛이 1이 아니면 첫 칸은 'nfr' 표기가 대신한다
+    for (let k = (start > 1 ? 1 : 0); k < cols; k++) {
       const num = start + k;
       const mark = [3, 5, 7, 9, 12, 15].indexOf(num) >= 0;
-      out.push('<text x="' + X(num).toFixed(1) + '" y="' + (padT - 4).toFixed(1) + '" text-anchor="middle" font-size="6.6" font-weight="' +
-        (mark ? 800 : 600) + '" fill="' + (mark ? '#93a0b8' : '#5f6879') + '">' + num + '</text>');
+      out.push('<text x="' + X(num).toFixed(1) + '" y="' + (padT - 4).toFixed(1) + '" text-anchor="middle" font-size="7.2" font-weight="' +
+        (mark ? 800 : 600) + '" fill="' + (mark ? '#a3b0c6' : '#6b7690') + '">' + num + '</text>');
     }
     // 줄 (가로선) — 위에서 내려다본 지판과 같은 방향
     for (let s = 1; s <= 6; s++) {
@@ -376,8 +376,8 @@
     function ghostGeom(note) {
       const padW = rBadge * 1.8;
       const padH = Math.min(gap * 0.5, rBadge * 1.15);
-      const wTop = padW * 0.48;
-      const wBot = padW * 0.7;
+      const wTop = padW * 0.34;
+      const wBot = padW * 0.46;
       return {
         x: xOf(note),
         y: yOf(note),
