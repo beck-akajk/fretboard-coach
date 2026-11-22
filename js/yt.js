@@ -52,9 +52,9 @@
     return String(id).slice(0, 180);
   }
 
-  function saveLink(url, id) {
+  function saveLink(url, id, start) {
     const map = readMap();
-    map[songKey()] = { url: url, id: id, at: Date.now() };
+    map[songKey()] = { url: url, id: id, start: start || 0, at: Date.now() };
     writeMap(map);
   }
 
@@ -282,7 +282,7 @@
     syncOpenLink();
     cur('영상 ID ' + parsed.id + (parsed.start ? ' · ' + parsed.start + '초부터' : ''));
     setSubDefault();
-    saveLink(raw, parsed.id);
+    saveLink(raw, parsed.id, parsed.start);
     mountPlayer(parsed.id, St.start);
     return true;
   }
@@ -321,13 +321,13 @@
     const input = $('ytUrl');
     if (rec) {
       St.videoId = rec.id;
-      St.start = 0;
+      St.start = rec.start || 0;
       St.lastUrl = rec.url || '';
       if (input) { input.value = rec.url || ''; input.classList.remove('bad'); }
       cur('저장된 링크 · 영상 ID ' + rec.id);
       syncOpenLink();
       hideNote();
-      if (St.open) mountPlayer(rec.id, 0);
+      if (St.open) mountPlayer(rec.id, St.start);
     } else {
       St.videoId = null;
       St.start = 0;
