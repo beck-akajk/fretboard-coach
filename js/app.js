@@ -87,8 +87,8 @@
       rows = Math.min(6, Math.max(4, need));
     }
     const W = 112;
-    const padT = 16, padB = 6, padL = 16, padR = 5;
-    const rowH = rows <= 4 ? 22 : 18.5;
+    const padT = 18, padB = 5, padL = 16, padR = 6;
+    const rowH = rows <= 4 ? 21.5 : 18.5;
     const H = padT + rows * rowH + padB;
     const x0 = padL, x1 = W - padR;
     const sx = (x1 - x0) / 5;
@@ -130,10 +130,10 @@
     for (let i = 0; i < 6; i++) {
       const f = frets[i];
       if (f < 0) {
-        out.push('<text x="' + X(i).toFixed(1) + '" y="' + (y0 - 4.5) +
-          '" text-anchor="middle" font-size="9.5" font-weight="700" fill="#8b95a9">×</text>');
+        out.push('<text x="' + X(i).toFixed(1) + '" y="' + (y0 - 5) +
+          '" text-anchor="middle" font-size="11" font-weight="700" fill="#98a3b8">×</text>');
       } else if (f === 0) {
-        out.push('<circle cx="' + X(i).toFixed(1) + '" cy="' + (y0 - 6.5) + '" r="3.1" fill="none" stroke="#a7b2c6" stroke-width="1.3"/>');
+        out.push('<circle cx="' + X(i).toFixed(1) + '" cy="' + (y0 - 7) + '" r="3.4" fill="none" stroke="#b3bcd0" stroke-width="1.4"/>');
       }
     }
     // 바레 막대
@@ -152,7 +152,7 @@
       if (inBarre[n.string + ':' + n.fret]) return;
       const cx = X(6 - n.string);
       const cy = Y(n.fret);
-      const r = Math.min(rowH * 0.35, 8.2);
+      const r = Math.min(rowH * 0.37, 8.6);
       const c = colorOf(n.finger);
       out.push('<circle cx="' + cx.toFixed(1) + '" cy="' + cy.toFixed(1) + '" r="' + r.toFixed(1) + '" fill="' + c + '"/>');
       out.push('<text x="' + cx.toFixed(1) + '" y="' + (cy + r * 0.36).toFixed(1) + '" text-anchor="middle" font-size="' +
@@ -357,11 +357,11 @@
       const y = yOf(note);
       const x = xOf(note);
       const c = colorOf(note.finger);
-      const w = rBadge * 1.95;
-      const h = Math.min(gap * 0.56, rBadge * 1.3);
+      const w = rBadge * 1.8;
+      const h = Math.min(gap * 0.52, rBadge * 1.22);
       out.push('<rect x="' + (x - w / 2).toFixed(1) + '" y="' + (y - h / 2).toFixed(1) + '" width="' + w.toFixed(1) +
-        '" height="' + h.toFixed(1) + '" rx="' + (h / 2).toFixed(1) + '" fill="' + c + '" fill-opacity="0.17" stroke="' + c +
-        '" stroke-opacity="0.55" stroke-width="1.2"/>');
+        '" height="' + h.toFixed(1) + '" rx="' + (h / 2).toFixed(1) + '" fill="' + c + '" fill-opacity="0.15" stroke="' + c +
+        '" stroke-opacity="0.5" stroke-width="1.2"/>');
       if (note.finger) {
         out.push('<text x="' + x.toFixed(1) + '" y="' + (y + fs * 0.35).toFixed(1) + '" text-anchor="middle" font-size="' + fs +
           '" font-weight="800" fill="' + c + '" fill-opacity="0.92">' + note.finger + '</text>');
@@ -389,7 +389,7 @@
       const held = fingers.some(function (f) { return f.fret === b.fret && f.finger === b.finger; });
       out.push('<rect x="' + (cx - w / 2).toFixed(1) + '" y="' + yT.toFixed(1) + '" width="' + w.toFixed(1) +
         '" height="' + (yBot - yT).toFixed(1) + '" rx="' + (w / 2).toFixed(1) + '" fill="' + c +
-        '" fill-opacity="' + (held ? '0.24' : '0.15') + '" stroke="' + c + '" stroke-opacity="' + (held ? '0.7' : '0.45') +
+        '" fill-opacity="' + (held ? '0.2' : '0.13') + '" stroke="' + c + '" stroke-opacity="' + (held ? '0.6' : '0.42') +
         '" stroke-width="1.3"' + (held ? '' : ' stroke-dasharray="5 4"') + '/>');
       out.push('<text x="' + cx.toFixed(1) + '" y="' + ((yT + yBot) / 2 + fs * 0.35).toFixed(1) +
         '" text-anchor="middle" font-size="' + fs + '" font-weight="800" fill="' + c + '" fill-opacity="0.9">' + b.finger + '</text>');
