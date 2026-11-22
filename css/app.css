@@ -96,7 +96,7 @@ main{display:flex;flex-direction:column;gap:10px;margin-top:10px}
 .hint-main{font-size:14.5px;font-weight:700;line-height:1.35;color:#fff}
 .hint-main .f1{color:var(--f1)} .hint-main .f2{color:var(--f2)}
 .hint-main .f3{color:var(--f3)} .hint-main .f4{color:var(--f4)}
-.hint-main .barre-tag{display:inline-block;vertical-align:1px;margin-left:2px;padding:1px 5px;border-radius:999px;background:rgba(74,158,255,.16);color:#7cbcff;font-size:9.5px;font-weight:700;letter-spacing:0}
+.hint-main .barre-tag{display:inline-block;vertical-align:1px;margin-left:2px;padding:0 4px;border-radius:999px;background:rgba(74,158,255,.16);color:#7cbcff;font-size:9px;line-height:1.5;font-weight:700;letter-spacing:0;white-space:nowrap}
 .hint-sub{font-size:11.5px;color:var(--muted)}
 .hint-next{font-size:11px;color:var(--dim)}
 
@@ -115,7 +115,7 @@ main{display:flex;flex-direction:column;gap:10px;margin-top:10px}
 @media (max-width:560px){
   .now-head{flex-direction:column;gap:8px}
   .chord-box{width:100%}
-  .chord-diagram{width:150px}
+  .chord-diagram{width:162px}
   .now-text{width:100%}
 }
 
