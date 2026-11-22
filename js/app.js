@@ -7,7 +7,7 @@
   const FINGER_COLOR = { 1: '#4a9eff', 2: '#2fd07a', 3: '#ff9f43', 4: '#b07cff', 0: '#9aa6bd' };
   const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
   // 하단 타브 스트립 — 6줄이 모두 잘리지 않고 들어오도록 줄 간격·높이를 한 곳에서 맞춘다
-  const TAB_ROW = { top: 8, gap: 13, height: 82 };
+  const TAB_ROW = { top: 9, gap: 13, height: 84 };
 
   const S = {
     score: null,
