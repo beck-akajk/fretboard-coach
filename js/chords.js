@@ -253,7 +253,49 @@
     return best;
   }
 
-  // 손가락 배정: 폼에 있는 음 → 폼 손가락, 폼에 없는 추가음 → 남는 손가락
+  /**
+   * 폼의 1번 손가락 바레 범위.
+   * shape.barre 가 있으면 그대로, 없어도 1번 손가락이 같은 프렛을 두 줄 이상 짚으면 바레로 본다.
+   * 반환: { fret, from, to } (from = 낮은 줄 번호 쪽 끝, to = 높은 줄 번호 쪽 끝)
+   */
+  function barreOfShape(shape) {
+    if (!shape) return null;
+    if (shape.barre && shape.barre.fret > 0) {
+      const a = shape.barre.from, b = shape.barre.to;
+      return { fret: shape.barre.fret, from: Math.max(a, b), to: Math.min(a, b) };
+    }
+    const byFret = {};
+    for (let i = 0; i < 6; i++) {
+      if (shape.fingers[i] !== 1 || !(shape.frets[i] > 0)) continue;
+      const s = 6 - i;
+      const f = shape.frets[i];
+      if (!byFret[f]) byFret[f] = [];
+      byFret[f].push(s);
+    }
+    let best = null;
+    Object.keys(byFret).forEach(function (k) {
+      const strings = byFret[k];
+      if (strings.length < 2) return;
+      const fret = Number(k);
+      if (!best || strings.length > best.strings.length) best = { fret: fret, strings: strings };
+    });
+    if (!best) return null;
+    return {
+      fret: best.fret,
+      from: Math.max.apply(null, best.strings),
+      to: Math.min.apply(null, best.strings),
+      strings: best.strings.slice().sort(function (a, b) { return a - b; })
+    };
+  }
+
+  // 이 음이 폼의 1번 손가락 바레가 이미 눌러 주는 자리인가
+  function isBarreNote(note, shape, barre) {
+    if (!shape || !barre) return false;
+    if (note.fret !== barre.fret) return false;
+    return note.string >= barre.to && note.string <= barre.from;
+  }
+
+  // 손가락 배정: 폼에 있는 음 → 폼 손가락, 바레 프렛 위의 음 → 1번 손가락, 그 밖의 추가음 → 남는 손가락
   function assignForShape(eventNotes, shape) {
     const out = [];
     const used = {};
@@ -263,6 +305,7 @@
         if (f > 0) used[f] = true;
       }
     }
+    const barre = barreOfShape(shape);
     const extras = [];
     for (let i = 0; i < eventNotes.length; i++) {
       const n = eventNotes[i];
@@ -270,6 +313,9 @@
       if (shape && f === n.fret) {
         const fin = shape.fingers[6 - n.string];
         out.push({ string: n.string, fret: n.fret, midi: n.midi, finger: fin > 0 ? fin : 0, kind: n.fret === 0 ? 'open' : 'form' });
+      } else if (isBarreNote(n, shape, barre)) {
+        // 1번 검지 바레가 이미 누르고 있는 자리 — 줄만 울리면 되니 1번 손가락으로 표시
+        out.push({ string: n.string, fret: n.fret, midi: n.midi, finger: 1, kind: 'barre' });
       } else {
         extras.push({ string: n.string, fret: n.fret, midi: n.midi });
       }
@@ -298,14 +344,24 @@
 
   function ghostsForShape(shape, eventNotes) {
     if (!shape) return [];
-    const pressed = {};
-    eventNotes.forEach(function (n) { pressed[n.string] = true; });
+    const played = {};
+    const playedString = {};
+    eventNotes.forEach(function (n) {
+      played[n.string + ':' + n.fret] = true;
+      playedString[n.string] = true;
+    });
     const g = [];
     for (let i = 0; i < 6; i++) {
       const s = 6 - i;
-      if (shape.frets[i] > 0 && !pressed[s]) {
-        g.push({ string: s, fret: shape.frets[i], finger: shape.fingers[i] > 0 ? shape.fingers[i] : 0 });
-      }
+      if (!(shape.frets[i] > 0)) continue;
+      if (played[s + ':' + shape.frets[i]]) continue;   // 지금 그 자리를 그대로 짚고 있다
+      g.push({
+        string: s,
+        fret: shape.frets[i],
+        finger: shape.fingers[i] > 0 ? shape.fingers[i] : 0,
+        // 같은 줄을 다른 프렛으로 치는 중 — 폼 자리는 아주 연하게만 남긴다
+        faint: !!playedString[s]
+      });
     }
     return g;
   }
@@ -318,6 +374,7 @@
     matchChord: matchChord,
     assignForShape: assignForShape,
     ghostsForShape: ghostsForShape,
+    barreOfShape: barreOfShape,
     shapeLabel: shapeLabel,
     fretMapOf: fretMapOf
   };

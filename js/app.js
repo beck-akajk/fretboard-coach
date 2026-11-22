@@ -71,7 +71,8 @@
   }
 
   // ------------------------------------------------------------ 미니 코드표(SVG)
-  // 세로 6줄 · 프렛 4~5칸. 뮤트(×)·개방(○)·시작 프렛(nfr)·손가락 점·바레 막대.
+  // 가로형(지판·타브와 같은 시선): 왼쪽→오른쪽이 낮은 프렛→높은 프렛, 위→아래가 1번줄→6번줄.
+  // 뮤트(×)·개방(○)은 왼쪽 너트 바깥 각 줄 높이, 1번 손가락 바레는 세로 막대.
   function chordDiagramSVG(shape) {
     if (!shape) return '';
     const frets = shape.frets;
@@ -90,79 +91,91 @@
     // 시작 프렛: 바레 폼은 바레 프렛부터 보여 준다(2fr·3fr …)
     const barre0 = barres.filter(function (b) { return b.finger === 1; })[0] || barres[0] || null;
     let start = 1;
-    let rows = 5;
+    let cols = 5;
     if (pressedF.length) {
       const mn = Math.min.apply(null, pressedF);
       const mx = Math.max.apply(null, pressedF);
       if (barre0 && barre0.fret >= 2) start = barre0.fret;
       else start = (mn > 2 || mx > 4) ? mn : 1;
       const need = mx - start + 1;
-      rows = need > 5 ? Math.min(6, need) : 5;
+      cols = need > 5 ? Math.min(6, need) : 5;
     }
-    const W = 100;
-    const padT = 18, padB = 5, padL = 15, padR = 5;
-    const rowH = rows <= 5 ? 19 : 17.5;
-    const H = padT + rows * rowH + padB;
+
+    const W = 136;
+    const padT = 13, padB = 6, padL = 16, padR = 5;
+    const rowH = 9.4;
+    const H = padT + 5 * rowH + padB;
     const x0 = padL, x1 = W - padR;
-    const sx = (x1 - x0) / 5;
-    const y0 = padT, y1 = padT + rows * rowH;
-    const X = function (i) { return x0 + i * sx; };            // i = 0(6번줄) … 5(1번줄)
-    const Y = function (fret) { return y0 + (fret - start + 0.5) * rowH; };
+    const y0 = padT;
+    const y1 = padT + 5 * rowH;
+    const fretW = (x1 - x0) / cols;
+    const X = function (fret) { return x0 + (fret - start + 0.5) * fretW; };
+    const Y = function (str) { return y0 + rowOf(str) * rowH; };
 
     const out = [];
     out.push('<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + esc(shape.name) + ' 코드 운지표">');
 
-    // 세로 줄 6개
-    for (let i = 0; i < 6; i++) {
-      out.push('<line x1="' + X(i).toFixed(1) + '" y1="' + y0 + '" x2="' + X(i).toFixed(1) + '" y2="' + y1 +
-        '" stroke="#5a6b85" stroke-width="' + (i === 0 || i === 5 ? 1.4 : 1) + '"/>');
+    // 프렛 번호 (위)
+    for (let k = 0; k < cols; k++) {
+      const num = start + k;
+      const mark = [3, 5, 7, 9, 12, 15].indexOf(num) >= 0;
+      out.push('<text x="' + X(num).toFixed(1) + '" y="' + (padT - 4).toFixed(1) + '" text-anchor="middle" font-size="6.6" font-weight="' +
+        (mark ? 800 : 600) + '" fill="' + (mark ? '#93a0b8' : '#5f6879') + '">' + num + '</text>');
     }
-    // 가로 프렛 선 (start 1이면 너트 굵게)
-    for (let r = 0; r <= rows; r++) {
-      const y = y0 + r * rowH;
-      const nut = (r === 0 && start === 1);
+    // 줄 (가로선) — 위에서 내려다본 지판과 같은 방향
+    for (let s = 1; s <= 6; s++) {
+      const y = Y(s);
       out.push('<line x1="' + x0 + '" y1="' + y.toFixed(1) + '" x2="' + x1 + '" y2="' + y.toFixed(1) +
-        '" stroke="' + (nut ? '#dfe6f3' : '#39435a') + '" stroke-width="' + (nut ? 3.6 : 1) + '"/>');
+        '" stroke="#5a6b85" stroke-width="' + (s === 1 || s === 6 ? 1.5 : 1) + '"/>');
+    }
+    // 프렛 (세로선), 1프렛부터면 왼쪽이 굵은 너트
+    for (let k = 0; k <= cols; k++) {
+      const x = x0 + k * fretW;
+      const nut = (k === 0 && start === 1);
+      out.push('<line x1="' + x.toFixed(1) + '" y1="' + y0 + '" x2="' + x.toFixed(1) + '" y2="' + y1 +
+        '" stroke="' + (nut ? '#dfe6f3' : '#39435a') + '" stroke-width="' + (nut ? 3.4 : 1) + '"/>');
     }
     // 시작 프렛 표기
     if (start > 1) {
-      out.push('<text x="' + (x0 - 3) + '" y="' + (Y(start) + 3.2).toFixed(1) +
-        '" text-anchor="end" font-size="8.5" font-weight="700" fill="#8c95a9">' + start + 'fr</text>');
+      out.push('<text x="' + (x0 - 2).toFixed(1) + '" y="' + (padT - 4).toFixed(1) +
+        '" text-anchor="end" font-size="7" font-weight="700" fill="#8c95a9">' + start + 'fr</text>');
     }
-    // × / ○
-    for (let i = 0; i < 6; i++) {
-      const f = frets[i];
-      const cx = X(i);
+    // × / ○ — 너트 바깥, 각 줄 높이
+    for (let s = 1; s <= 6; s++) {
+      const f = frets[6 - s];
+      const cy = Y(s);
+      const cx = x0 - 5.5;
       if (f < 0) {
-        const my = y0 - 7;
-        out.push('<path d="M' + (cx - 3.1).toFixed(1) + ' ' + (my - 3.1).toFixed(1) + 'L' + (cx + 3.1).toFixed(1) + ' ' + (my + 3.1).toFixed(1) +
-          'M' + (cx + 3.1).toFixed(1) + ' ' + (my - 3.1).toFixed(1) + 'L' + (cx - 3.1).toFixed(1) + ' ' + (my + 3.1).toFixed(1) +
-          '" stroke="#9aa6bc" stroke-width="1.7" stroke-linecap="round"/>');
+        out.push('<path d="M' + (cx - 2.2).toFixed(1) + ' ' + (cy - 2.2).toFixed(1) + 'L' + (cx + 2.2).toFixed(1) + ' ' + (cy + 2.2).toFixed(1) +
+          'M' + (cx + 2.2).toFixed(1) + ' ' + (cy - 2.2).toFixed(1) + 'L' + (cx - 2.2).toFixed(1) + ' ' + (cy + 2.2).toFixed(1) +
+          '" stroke="#9aa6bc" stroke-width="1.4" stroke-linecap="round"/>');
       } else if (f === 0) {
-        out.push('<circle cx="' + cx.toFixed(1) + '" cy="' + (y0 - 7) + '" r="3.4" fill="none" stroke="#b8c1d4" stroke-width="1.5"/>');
+        out.push('<circle cx="' + cx.toFixed(1) + '" cy="' + cy.toFixed(1) + '" r="2.4" fill="none" stroke="#b8c1d4" stroke-width="1.2"/>');
       }
     }
-    // 바레 막대
+    // 바레 막대 — 1번 검지가 여러 줄을 세로로 이어 누른다
     barres.forEach(function (b) {
       const c = colorOf(b.finger);
-      const ya = Y(b.fret) - rowH * 0.33;
-      const h = rowH * 0.66;
-      const xa = X(6 - b.from), xb = X(6 - b.to);
-      out.push('<rect x="' + Math.min(xa, xb).toFixed(1) + '" y="' + ya.toFixed(1) + '" width="' + Math.abs(xb - xa).toFixed(1) +
-        '" height="' + h.toFixed(1) + '" rx="' + (h / 2).toFixed(1) + '" fill="' + c + '" opacity="0.92"/>');
-      out.push('<text x="' + (Math.min(xa, xb) + h * 0.52).toFixed(1) + '" y="' + (Y(b.fret) + 3).toFixed(1) +
-        '" text-anchor="middle" font-size="9" font-weight="800" fill="#0b0e14">' + b.finger + '</text>');
+      const cx = X(b.fret);
+      const yA = Y(b.from), yB = Y(b.to);
+      const yT = Math.min(yA, yB) - rowH * 0.42;
+      const yBot = Math.max(yA, yB) + rowH * 0.42;
+      const w = rowH * 0.66;
+      out.push('<rect x="' + (cx - w / 2).toFixed(1) + '" y="' + yT.toFixed(1) + '" width="' + w.toFixed(1) +
+        '" height="' + (yBot - yT).toFixed(1) + '" rx="' + (w / 2).toFixed(1) + '" fill="' + c + '" opacity="0.92"/>');
+      out.push('<text x="' + cx.toFixed(1) + '" y="' + ((yT + yBot) / 2 + 2.4).toFixed(1) +
+        '" text-anchor="middle" font-size="7.4" font-weight="800" fill="#0b0e14">' + b.finger + '</text>');
     });
     // 손가락 점
     list.forEach(function (n) {
       if (inBarre[n.string + ':' + n.fret]) return;
-      const cx = X(6 - n.string);
-      const cy = Y(n.fret);
-      const r = Math.min(rowH * 0.37, 8.6);
+      const cx = X(n.fret);
+      const cy = Y(n.string);
+      const r = rowH * 0.44;
       const c = colorOf(n.finger);
       out.push('<circle cx="' + cx.toFixed(1) + '" cy="' + cy.toFixed(1) + '" r="' + r.toFixed(1) + '" fill="' + c + '"/>');
-      out.push('<text x="' + cx.toFixed(1) + '" y="' + (cy + r * 0.36).toFixed(1) + '" text-anchor="middle" font-size="' +
-        (r * 1.1).toFixed(1) + '" font-weight="800" fill="#0b0e14">' + n.finger + '</text>');
+      out.push('<text x="' + cx.toFixed(1) + '" y="' + (cy + r * 0.4).toFixed(1) + '" text-anchor="middle" font-size="' +
+        (r * 1.15).toFixed(1) + '" font-weight="800" fill="#0b0e14">' + n.finger + '</text>');
     });
     out.push('</svg>');
     return out.join('');
@@ -358,19 +371,47 @@
         (rBadge * 0.95).toFixed(1) + '" font-weight="800" fill="#0b0e14">' + label + '</text>');
     }
 
-    // 유지하는 손가락 : 코드 폼 색을 띤 흐릿한 손가락 패드
-    function ghostPad(note) {
-      const y = yOf(note);
-      const x = xOf(note);
+    // 유지하는 손가락 : 코드 폼 색을 띤 반투명 손가락 실루엣(손끝 마디 + 아래에서 들어오는 몸통)
+    // 몸통을 모두 먼저 깔고 손끝 마디를 그 위에 올려 손가락끼리 서로 가리지 않게 한다.
+    function ghostGeom(note) {
+      const padW = rBadge * 1.8;
+      const padH = Math.min(gap * 0.5, rBadge * 1.15);
+      const wTop = padW * 0.48;
+      const wBot = padW * 0.7;
+      return {
+        x: xOf(note),
+        y: yOf(note),
+        padW: padW,
+        padH: padH,
+        wTop: wTop,
+        wBot: wBot,
+        cy: yOf(note) - padH * 0.42 + wTop * 0.9,
+        botY: yOf(note) + Math.min(gap * 0.98, rBadge * 2.4)
+      };
+    }
+    function ghostBody(note) {
+      const g = ghostGeom(note);
       const c = colorOf(note.finger);
-      const w = rBadge * 1.8;
-      const h = Math.min(gap * 0.52, rBadge * 1.22);
-      out.push('<rect x="' + (x - w / 2).toFixed(1) + '" y="' + (y - h / 2).toFixed(1) + '" width="' + w.toFixed(1) +
-        '" height="' + h.toFixed(1) + '" rx="' + (h / 2).toFixed(1) + '" fill="' + c + '" fill-opacity="0.15" stroke="' + c +
-        '" stroke-opacity="0.5" stroke-width="1.2"/>');
+      const faint = !!note.faint;
+      const d = 'M' + (g.x - g.wTop).toFixed(1) + ' ' + g.cy.toFixed(1) +
+        ' A' + g.wTop.toFixed(1) + ' ' + g.wTop.toFixed(1) + ' 0 0 1 ' + (g.x + g.wTop).toFixed(1) + ' ' + g.cy.toFixed(1) +
+        ' L' + (g.x + g.wBot).toFixed(1) + ' ' + g.botY.toFixed(1) +
+        ' L' + (g.x - g.wBot).toFixed(1) + ' ' + g.botY.toFixed(1) + ' Z';
+      out.push('<path d="' + d + '" fill="' + c + '" fill-opacity="' + (faint ? 0.05 : 0.12) + '" stroke="' + c +
+        '" stroke-opacity="' + (faint ? 0.18 : 0.38) + '" stroke-width="1.1" stroke-linejoin="round"/>');
+    }
+    function ghostTip(note) {
+      const g = ghostGeom(note);
+      const c = colorOf(note.finger);
+      const faint = !!note.faint;
+      // 마디(손끝) — 프렛 바로 뒤를 누르는 자리
+      out.push('<ellipse cx="' + g.x.toFixed(1) + '" cy="' + g.y.toFixed(1) + '" rx="' + (g.padW / 2).toFixed(1) +
+        '" ry="' + (g.padH / 2).toFixed(1) + '" fill="' + c + '" fill-opacity="' + (faint ? 0.1 : 0.24) +
+        '" stroke="' + c + '" stroke-opacity="' + (faint ? 0.22 : 0.5) + '" stroke-width="1"/>');
       if (note.finger) {
-        out.push('<text x="' + x.toFixed(1) + '" y="' + (y + fs * 0.35).toFixed(1) + '" text-anchor="middle" font-size="' + fs +
-          '" font-weight="800" fill="' + c + '" fill-opacity="0.92">' + note.finger + '</text>');
+        out.push('<text x="' + g.x.toFixed(1) + '" y="' + (g.y + fs * 0.35).toFixed(1) + '" text-anchor="middle" font-size="' +
+          (faint ? fs - 1 : fs) + '" font-weight="800" fill="' + c + '" fill-opacity="' + (faint ? 0.45 : 0.92) + '">' +
+          note.finger + '</text>');
       }
     }
 
@@ -383,6 +424,11 @@
     barres.forEach(function (b) {
       b.strings.forEach(function (s) { inBarre[s + ':' + b.fret] = true; });
     });
+
+    // 흐릿한 손가락을 먼저 깔고, 그 위에 바레 막대, 맨 위에 지금 짚는 음 배지
+    const shownGhosts = ghosts.filter(function (g) { return !(g.fret > 0 && inBarre[g.string + ':' + g.fret]); });
+    shownGhosts.forEach(ghostBody);
+    shownGhosts.forEach(ghostTip);
 
     barres.forEach(function (b) {
       const c = colorOf(b.finger);
@@ -401,10 +447,6 @@
         '" text-anchor="middle" font-size="' + fs + '" font-weight="800" fill="' + c + '" fill-opacity="0.9">' + b.finger + '</text>');
     });
 
-    ghosts.forEach(function (g) {
-      if (g.fret > 0 && inBarre[g.string + ':' + g.fret]) return;  // 바레 막대가 대신 보여 준다
-      ghostPad(g);
-    });
     fingers.forEach(badge);
 
     if (!ev) {
@@ -420,7 +462,8 @@
   function fingerPhrase(f) {
     if (f.fret === 0) return '개방현 ' + f.string + '번줄';
     const fl = f.finger ? '<span class="f' + f.finger + '">' + f.finger + '번 ' + FINGER_NAME[f.finger] + '</span>' : '';
-    return (fl ? fl + ' · ' : '') + f.string + '번줄 ' + f.fret + '프렛';
+    const tag = f.kind === 'barre' ? ' <span class="barre-tag">바레</span>' : '';
+    return (fl ? fl + ' · ' : '') + f.string + '번줄 ' + f.fret + '프렛' + tag;
   }
 
   function movesOf(ev, prev) {
@@ -476,6 +519,10 @@
       const brs = barreGroups(ev.fingers.concat(ev.ghosts));
       const b1 = brs.filter(function (b) { return b.finger === 1; })[0];
       if (b1) bits.push('1번 검지 ' + b1.fret + '프렛 바레');
+      const barreNotes = ev.fingers.filter(function (f) { return f.kind === 'barre'; });
+      if (barreNotes.length) {
+        bits.push(barreNotes.map(function (f) { return f.string + '번줄'; }).join('·') + '은 1번 검지 바레로 소리');
+      }
       const extras = ev.fingers.filter(function (f) { return f.kind === 'extra'; });
       if (extras.length) {
         bits.push('폼 밖 음은 ' + extras.map(function (f) { return f.finger ? f.finger + '번 손가락' : '손을 옮겨 짚기'; }).join('·'));
@@ -889,6 +936,7 @@
       toast(S.order === 'low' ? '6번줄을 아래로' : '1번줄을 아래로', 1400);
       renderStrip();
       drawFretboard();
+      renderNow();
       updateStripCurrent();
     });
 
@@ -923,7 +971,7 @@
       S.loopA = ev ? ev.barIndex : 0;
       if (S.loopB != null && S.loopB < S.loopA) S.loopB = null;
       markLoop(); updateTransport();
-      toast('A = ' + (S.loopA + 1) + '마디', 1400);
+      toast('시작 = ' + (S.loopA + 1) + '마디', 1400);
     });
     $('loopB').addEventListener('click', function () {
       const ev = S.flat[S.cur];
@@ -931,7 +979,7 @@
       if (S.loopA == null) S.loopA = S.loopB;
       markLoop(); updateTransport();
       const r = loopRange();
-      toast('반복 ' + (r.a + 1) + '–' + (r.b + 1) + '마디', 1600);
+      toast('끝 = ' + (r.b + 1) + '마디 · 반복 ' + (r.a + 1) + '–' + (r.b + 1) + '마디', 1600);
     });
     $('loopClear').addEventListener('click', function () {
       S.loopA = null; S.loopB = null;

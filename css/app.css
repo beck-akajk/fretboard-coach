@@ -48,7 +48,7 @@ body{
 .btn:active{transform:scale(.97)}
 .btn-load{background:linear-gradient(180deg,#2a3346,#1e2534);border-color:#3a4560}
 .btn-ghost{background:transparent;color:var(--muted);font-size:12px;padding:7px 9px}
-.btn-mini{background:transparent;border:1px solid var(--line);color:var(--muted);border-radius:8px;padding:5px 10px;font-size:12px;font-family:inherit;cursor:pointer}
+.btn-mini{background:transparent;border:1px solid var(--line);color:var(--muted);border-radius:8px;padding:5px 10px;font-size:12px;font-family:inherit;cursor:pointer;white-space:nowrap;flex:0 0 auto}
 .btn-mini.on{background:var(--accent);color:#171104;border-color:var(--accent);font-weight:800}
 
 .song-row{margin-top:9px}
@@ -89,13 +89,14 @@ main{display:flex;flex-direction:column;gap:10px;margin-top:10px}
 .chord-cap{font-size:9.5px;letter-spacing:.1em;color:var(--dim);font-weight:700;white-space:nowrap}
 .chord-name{font-size:23px;font-weight:800;letter-spacing:-.5px;line-height:1.1;margin-top:2px;color:#fff}
 .chord-shape{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:9.5px;color:var(--muted);margin-top:3px;letter-spacing:.3px;white-space:nowrap}
-.chord-diagram{flex:0 0 auto;margin-left:auto;width:92px}
+.chord-diagram{flex:0 0 auto;margin-left:auto;width:122px}
 .chord-diagram:empty{display:none}
 .chord-diagram svg{display:block;width:100%;height:auto;overflow:visible}
 .now-text{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;gap:3px}
 .hint-main{font-size:14.5px;font-weight:700;line-height:1.35;color:#fff}
 .hint-main .f1{color:var(--f1)} .hint-main .f2{color:var(--f2)}
 .hint-main .f3{color:var(--f3)} .hint-main .f4{color:var(--f4)}
+.hint-main .barre-tag{display:inline-block;vertical-align:1px;margin-left:2px;padding:1px 5px;border-radius:999px;background:rgba(74,158,255,.16);color:#7cbcff;font-size:9.5px;font-weight:700;letter-spacing:0}
 .hint-sub{font-size:11.5px;color:var(--muted)}
 .hint-next{font-size:11px;color:var(--dim)}
 
@@ -114,8 +115,16 @@ main{display:flex;flex-direction:column;gap:10px;margin-top:10px}
 @media (max-width:560px){
   .now-head{flex-direction:column;gap:8px}
   .chord-box{width:100%}
-  .chord-diagram{width:136px}
+  .chord-diagram{width:150px}
   .now-text{width:100%}
+}
+
+/* 폰 폭: 구간 반복 줄이 한 줄에 들어가게 */
+@media (max-width:430px){
+  .loop-row{gap:6px}
+  .loop-row .lab{min-width:0;font-size:10.5px;letter-spacing:-.2px}
+  .loop-row .btn-mini{padding:5px 8px;font-size:11.5px}
+  .loop-row .loop-val{font-size:11px;min-width:0}
 }
 
 /* ---------- tab strip ---------- */
