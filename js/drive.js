@@ -23,7 +23,8 @@
     busyId: null,
     openId: null,
     bound: false,
-    loadedAt: 0
+    loadedAt: 0,
+    gone: {}           // 이번 화면에서 지운 id — 목록이 늦게 따라와도 잠시 다시 보이지 않게
   };
   let upTimer = null;
 
@@ -105,7 +106,11 @@
     if (!quiet) { D.state = 'loading'; render(); }
     try {
       const data = await call('GET', null, '?action=list');
-      const files = (data.files || []).slice();
+      const now = Date.now();
+      const files = (data.files || []).filter(function (f) {
+        const at = D.gone[f.id];
+        return !at || now - at > 15000;
+      });
       files.sort(function (a, b) { return String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')); });
       D.files = files;
       D.state = 'ok';
@@ -164,6 +169,11 @@
       render();
       toast('드라이브 보관함에 저장했습니다 · ' + name, 2400);
       await refresh({ quiet: true });
+      // 방금 만든 파일이 드라이브 목록에 살짝 늦게 잡힐 수 있어 한 번 더 확인한다
+      if (!D.files.some(function (f) { return f.name === name; })) {
+        await new Promise(function (r) { setTimeout(r, 1300); });
+        await refresh({ quiet: true });
+      }
       upTimer = setTimeout(function () {
         if (D.up && D.up.state === 'done') { D.up = null; render(); }
       }, 3500);
@@ -183,6 +193,7 @@
     if (!window.confirm('"' + name + '" 을(를) 구글 드라이브 휴지통으로 보낼까요?\n다른 기기의 보관함에서도 사라집니다.')) return;
     try {
       await call('POST', { action: 'delete', id: id });
+      D.gone[id] = Date.now();
       D.files = D.files.filter(function (x) { return x.id !== id; });
       if (D.openId === id) {
         D.openId = null;
