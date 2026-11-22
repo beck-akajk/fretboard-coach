@@ -78,17 +78,17 @@
     const fingers = shape.fingers;
     const pressedF = frets.filter(function (f) { return f > 0; });
     let start = 1;
-    let rows = 4;
+    let rows = 5;
     if (pressedF.length) {
       const mn = Math.min.apply(null, pressedF);
       const mx = Math.max.apply(null, pressedF);
       start = (mn > 2 || mx > 4) ? mn : 1;
       const need = mx - start + 1;
-      rows = Math.min(6, Math.max(4, need));
+      rows = need > 5 ? Math.min(6, need) : 5;
     }
-    const W = 112;
-    const padT = 18, padB = 5, padL = 16, padR = 6;
-    const rowH = rows <= 4 ? 21.5 : 18.5;
+    const W = 100;
+    const padT = 18, padB = 5, padL = 15, padR = 5;
+    const rowH = rows <= 5 ? 19 : 17.5;
     const H = padT + rows * rowH + padB;
     const x0 = padL, x1 = W - padR;
     const sx = (x1 - x0) / 5;
@@ -129,11 +129,14 @@
     // × / ○
     for (let i = 0; i < 6; i++) {
       const f = frets[i];
+      const cx = X(i);
       if (f < 0) {
-        out.push('<text x="' + X(i).toFixed(1) + '" y="' + (y0 - 5) +
-          '" text-anchor="middle" font-size="11" font-weight="700" fill="#98a3b8">×</text>');
+        const my = y0 - 7;
+        out.push('<path d="M' + (cx - 3.1).toFixed(1) + ' ' + (my - 3.1).toFixed(1) + 'L' + (cx + 3.1).toFixed(1) + ' ' + (my + 3.1).toFixed(1) +
+          'M' + (cx + 3.1).toFixed(1) + ' ' + (my - 3.1).toFixed(1) + 'L' + (cx - 3.1).toFixed(1) + ' ' + (my + 3.1).toFixed(1) +
+          '" stroke="#9aa6bc" stroke-width="1.7" stroke-linecap="round"/>');
       } else if (f === 0) {
-        out.push('<circle cx="' + X(i).toFixed(1) + '" cy="' + (y0 - 7) + '" r="3.4" fill="none" stroke="#b3bcd0" stroke-width="1.4"/>');
+        out.push('<circle cx="' + cx.toFixed(1) + '" cy="' + (y0 - 7) + '" r="3.4" fill="none" stroke="#b8c1d4" stroke-width="1.5"/>');
       }
     }
     // 바레 막대
