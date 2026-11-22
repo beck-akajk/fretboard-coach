@@ -6,6 +6,8 @@
   const FINGER_NAME = { 1: '검지', 2: '중지', 3: '약지', 4: '소지' };
   const FINGER_COLOR = { 1: '#4a9eff', 2: '#2fd07a', 3: '#ff9f43', 4: '#b07cff', 0: '#9aa6bd' };
   const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+  // 하단 타브 스트립 — 6줄이 모두 잘리지 않고 들어오도록 줄 간격·높이를 한 곳에서 맞춘다
+  const TAB_ROW = { top: 8, gap: 13, height: 82 };
 
   const S = {
     score: null,
@@ -277,14 +279,47 @@
     const fingers = ev ? ev.fingers : [];
     const ghosts = ev ? ev.ghosts : [];
 
-    const fretted = fingers.filter(function (f) { return f.fret > 0; }).map(function (f) { return f.fret; })
-      .concat(ghosts.filter(function (f) { return f.fret > 0; }).map(function (f) { return f.fret; }));
-    let start = 1;
-    if (fretted.length) {
-      const mn = Math.min.apply(null, fretted);
-      const mx = Math.max.apply(null, fretted);
-      start = Math.max(1, mn - 1);
-      if (mx > start + FRETS - 1) start = Math.max(1, mx - FRETS + 1);
+    // --- 이번 마디 미리보기 : 마디 안에 등장하는 모든 음을 지판에 함께 보여 준다.
+    // 같은 줄·프렛에는 하나만 그린다 — 우선순위 현재 음 > 유지 폼(실루엣) > 다가올 음 > 지나간 음.
+    const upcoming = [];
+    const passed = [];
+    if (ev && S.bars[ev.barIndex]) {
+      const taken = {};
+      fingers.forEach(function (f) { taken[f.string + ':' + f.fret] = true; });
+      ghosts.forEach(function (g) { taken[g.string + ':' + g.fret] = true; });
+      const barEvents = S.bars[ev.barIndex].events;
+      for (let pass = 0; pass < 2; pass++) {
+        const future = pass === 0;   // 다가올 음을 먼저 차지시키고 남은 자리만 지나간 음으로
+        for (let i = 0; i < barEvents.length; i++) {
+          const o = barEvents[i];
+          if (o === ev || (o.barEventIndex > ev.barEventIndex) !== future) continue;
+          for (let k = 0; k < o.fingers.length; k++) {
+            const f = o.fingers[k];
+            const key = f.string + ':' + f.fret;
+            if (taken[key]) continue;
+            taken[key] = true;
+            (future ? upcoming : passed).push(f);
+          }
+        }
+      }
+    }
+
+    // 지판에 보이는 프렛 범위 — 마디 안 음이 한 화면에 다 들어오면 그 범위를 함께 보여 준다.
+    function spanStart(list) {
+      const fs2 = list.filter(function (f) { return f.fret > 0; }).map(function (f) { return f.fret; });
+      if (!fs2.length) return 1;
+      const mn = Math.min.apply(null, fs2);
+      const mx = Math.max.apply(null, fs2);
+      let s2 = mn > 1 ? mn - 1 : 1;
+      if (mx > s2 + FRETS - 1) s2 = mx - FRETS + 1;
+      return Math.max(1, s2);
+    }
+    const curNotes = fingers.concat(ghosts);
+    const barNotes = curNotes.concat(upcoming).concat(passed);
+    const barFrets = barNotes.filter(function (f) { return f.fret > 0; }).map(function (f) { return f.fret; });
+    let start = spanStart(curNotes);
+    if (barFrets.length > 1 && Math.max.apply(null, barFrets) - Math.min.apply(null, barFrets) <= FRETS - 1) {
+      start = spanStart(barNotes);
     }
 
     const fs = narrow ? 10 : 11;      // 기본 글자
@@ -425,6 +460,27 @@
       }
     }
 
+    // 마디 미리보기 : 다가올 음은 점선 테두리 + 은은한 채움(손가락 번호 작게),
+    // 이미 지나간 음은 한 단계 더 흐린 점으로 남겨 마디 흐름이 지판만 봐도 보이게 한다.
+    function previewMark(note, future) {
+      const x = xOf(note);
+      const y = yOf(note);
+      const c = colorOf(note.finger);
+      if (!future) {
+        out.push('<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="' + (rBadge * 0.6).toFixed(1) +
+          '" fill="' + c + '" fill-opacity="0.14" stroke="' + c + '" stroke-opacity="0.28" stroke-width="0.8"/>');
+        return;
+      }
+      const r = rBadge * 0.8;
+      out.push('<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="' + r.toFixed(1) +
+        '" fill="' + c + '" fill-opacity="0.16" stroke="' + c + '" stroke-opacity="0.62" stroke-width="1.1" stroke-dasharray="3 2.6"/>');
+      const label = note.finger ? String(note.finger) : (note.fret === 0 ? '0' : '');
+      if (label) {
+        out.push('<text x="' + x.toFixed(1) + '" y="' + (y + r * 0.34).toFixed(1) + '" text-anchor="middle" font-size="' +
+          (r * 0.92).toFixed(1) + '" font-weight="800" fill="' + c + '" fill-opacity="0.72">' + label + '</text>');
+      }
+    }
+
     // 바레 : 1번 손가락이 여러 줄을 세로로 이어 누르는 흐릿한 막대
     const allNotes = [];
     ghosts.forEach(function (g) { allNotes.push({ string: g.string, fret: g.fret, finger: g.finger, ghost: true }); });
@@ -436,6 +492,8 @@
     });
 
     // 흐릿한 손가락을 먼저 깔고, 그 위에 바레 막대, 맨 위에 지금 짚는 음 배지
+    // (지나간 음 → 유지 폼 → 바레 → 다가올 음 → 현재 음 순서로 겹친다)
+    passed.forEach(function (n) { previewMark(n, false); });
     const shownGhosts = ghosts.filter(function (g) { return !(g.fret > 0 && inBarre[g.string + ':' + g.fret]); });
     shownGhosts.forEach(ghostBody);
     shownGhosts.forEach(ghostTip);
@@ -457,6 +515,7 @@
         '" text-anchor="middle" font-size="' + fs + '" font-weight="800" fill="' + c + '" fill-opacity="0.9">' + b.finger + '</text>');
     });
 
+    upcoming.forEach(function (n) { previewMark(n, true); });
     fingers.forEach(badge);
 
     if (!ev) {
@@ -566,6 +625,14 @@
   // ---------------------------------------------------------------- 타브 스트립
   function renderStrip() {
     const strip = $('strip');
+    // 6줄 눈금을 SVG로 직접 그린다(배경 반복 그라데이션은 마지막 줄이 경계에 걸려 잘렸다)
+    let linesSvg = '<svg class="lines" viewBox="0 0 100 ' + TAB_ROW.height + '" preserveAspectRatio="none" aria-hidden="true">';
+    for (let li = 0; li < 6; li++) {
+      const y = TAB_ROW.top + li * TAB_ROW.gap;
+      linesSvg += '<line x1="0" y1="' + y + '" x2="100" y2="' + y +
+        '" stroke="#2f3a4e" stroke-width="1" vector-effect="non-scaling-stroke"/>';
+    }
+    linesSvg += '</svg>';
     let html = '';
     for (let bi = 0; bi < S.bars.length; bi++) {
       const b = S.bars[bi];
@@ -577,7 +644,7 @@
       html += '<div class="bar" data-bar="' + bi + '" style="width:' + width + 'px">';
       html += '<div class="bar-chord">' + esc(names.join(' / ')) + '</div>';
       html += '<div class="bar-num">' + (bi + 1) + '</div>';
-      html += '<div class="bar-body"><div class="lines"></div>';
+      html += '<div class="bar-body" style="height:' + TAB_ROW.height + 'px">' + linesSvg;
       for (let ei = 0; ei < evs.length; ei++) {
         const ev = evs[ei];
         const left = ((ev.tick - bar.startTick) / Math.max(1, bar.lenTicks)) * 100;
@@ -587,7 +654,7 @@
           for (let fi = 0; fi < ev.fingers.length; fi++) {
             if (ev.fingers[fi].string === n.string) { finger = ev.fingers[fi].finger; break; }
           }
-          const top = 6 + rowOf(n.string) * 12.4;
+          const top = TAB_ROW.top + rowOf(n.string) * TAB_ROW.gap;
           const lp = 4 + (left / 100) * 92;
           html += '<span class="n' + (n.fret === 0 ? ' open' : '') + '" data-i="' + ev.gi + '" style="left:' +
             lp.toFixed(2) + '%;top:' + top.toFixed(1) + 'px;color:' + colorOf(finger) + '">' +

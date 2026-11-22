@@ -148,6 +148,7 @@ main{display:flex;flex-direction:column;gap:10px;margin-top:10px}
 .legend .f3{background:var(--f3)} .legend .f4{background:var(--f4)}
 .legend .pad{width:22px;height:13px;border-radius:7px;border:1.2px solid #7a86a0;background:rgba(120,135,165,.2)}
 .legend .barre{width:9px;height:17px;border-radius:5px;border:1.2px solid #5b9ede;background:rgba(74,158,255,.26)}
+.legend .ring{width:14px;height:14px;border-radius:50%;border:1.3px dashed #8b97b0;background:rgba(139,151,176,.14)}
 
 /* 폰 폭: 코드 카드를 한 줄 전체로 넓혀 지판 그림과 안내가 겹치지 않게 */
 @media (max-width:560px){
@@ -172,17 +173,15 @@ main{display:flex;flex-direction:column;gap:10px;margin-top:10px}
 .strip-wrap::-webkit-scrollbar{height:6px}
 .strip-wrap::-webkit-scrollbar-track{background:transparent}
 .strip-wrap::-webkit-scrollbar-thumb{background:#333d52;border-radius:3px}
-.strip{display:flex;gap:0;position:relative;min-height:104px;padding-bottom:2px}
+.strip{display:flex;gap:0;position:relative;min-height:112px;padding-bottom:2px}
 .bar{position:relative;flex:0 0 auto;border-right:1px solid var(--line);padding:0 0 0 0}
 .bar:first-child{border-left:1px solid var(--line)}
 .bar.cur{background:rgba(255,182,77,.05)}
 .bar.inloop{background:rgba(255,182,77,.075);box-shadow:inset 0 2px 0 rgba(255,182,77,.45)}
 .bar-chord{font-size:10.5px;font-weight:800;color:var(--accent);padding:2px 0 2px 6px;height:17px;white-space:nowrap;overflow:hidden}
 .bar-num{font-size:8.5px;color:var(--dim);padding-left:6px;height:11px}
-.bar-body{position:relative;height:74px;margin:0 2px}
-.bar-body .lines{position:absolute;inset:6px 0 6px 0;
-  background-image:repeating-linear-gradient(to bottom, #2f3a4e 0px, #2f3a4e 1px, transparent 1px, transparent 12.4px);
-  opacity:.75}
+.bar-body{position:relative;height:82px;margin:0 2px}
+.bar-body .lines{position:absolute;inset:0;width:100%;height:100%;opacity:.9}
 .bar-body .n{
   position:absolute;transform:translate(-50%,-50%);
   font-family:ui-monospace,Menlo,Consolas,monospace;font-size:9.5px;font-weight:700;
