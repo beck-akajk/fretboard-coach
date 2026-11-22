@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0f1115">
 <title>프렛 코치 · 기타 타브 운지</title>
-<link rel="stylesheet" href="css/app.css?v=20261122u">
+<link rel="stylesheet" href="css/app.css?v=20261122v">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -77,6 +77,40 @@
       <div class="drive-list" id="driveList" aria-live="polite"></div>
     </section>
 
+    <section class="panel yt" id="ytPanel">
+      <button class="yt-head" id="ytToggle" type="button" aria-expanded="false" aria-controls="ytBody">
+        <span class="yt-ico" aria-hidden="true">🎬</span>
+        <span class="yt-title">원곡 유튜브</span>
+        <span class="yt-sub" id="ytSub">접힘 · 링크를 넣어 원곡과 함께 연습</span>
+        <span class="yt-caret" aria-hidden="true">▾</span>
+      </button>
+      <div class="yt-body" id="ytBody" hidden>
+        <div class="yt-urlrow">
+          <input id="ytUrl" type="text" inputmode="url" autocomplete="off" spellcheck="false"
+                 placeholder="youtu.be/… · youtube.com/watch?v=… · 영상 ID" aria-label="원곡 유튜브 링크">
+          <button id="ytLoad" class="btn btn-mini on" type="button">불러오기</button>
+        </div>
+        <div class="yt-actrow">
+          <button id="ytFind" class="btn btn-mini" type="button">🔎 유튜브에서 검색</button>
+          <span class="yt-cur" id="ytCur">링크를 넣고 불러오기를 누르세요</span>
+        </div>
+        <div class="yt-frame" id="ytFrame" hidden>
+          <div id="ytPlayer"></div>
+        </div>
+        <div class="yt-speeds" id="ytSpeeds" role="group" aria-label="원곡 재생 속도">
+          <span class="lab">원곡 속도</span>
+          <button type="button" data-rate="0.25">0.25×</button>
+          <button type="button" data-rate="0.5">0.5×</button>
+          <button type="button" data-rate="0.75">0.75×</button>
+          <button type="button" data-rate="1">1×</button>
+        </div>
+        <div class="yt-note" id="ytNote" hidden>
+          <span class="yt-note-text" id="ytNoteText">외부 재생이 제한된 영상이면 다른 영상 링크를 넣거나 새 탭에서 열어 주세요.</span>
+          <a id="ytOpen" class="yt-open" href="https://www.youtube.com/" target="_blank" rel="noopener noreferrer">새 탭에서 열기 ↗</a>
+        </div>
+      </div>
+    </section>
+
     <section class="panel now-panel">
       <div class="now-head">
         <div class="chord-box">
@@ -126,6 +160,8 @@
         <button class="tbtn play" id="playBtn" type="button" aria-label="재생">▶</button>
         <button class="tbtn" id="noteNext" type="button" aria-label="다음 음">▶|</button>
         <button class="tbtn" id="barNext" type="button" aria-label="다음 마디">⏭</button>
+        <button class="tbtn tbtn-mute" id="muteBtn" type="button" aria-pressed="false"
+                title="앱 악보 소리 끄기" aria-label="앱 소리 끄기">🔊</button>
       </div>
       <div class="sec-row speed-row">
         <span class="lab">속도</span>
@@ -176,13 +212,14 @@ window.addEventListener('unhandledrejection', function (e) {
 });
 </script>
 <script src="vendor/alphaTab.min.js"></script>
-<script src="js/tuning.js?v=20261122u"></script>
-<script src="js/chords.js?v=20261122u"></script>
-<script src="js/finger.js?v=20261122u"></script>
-<script src="js/demo.js?v=20261122u"></script>
-<script src="js/score.js?v=20261122u"></script>
-<script src="js/audio.js?v=20261122u"></script>
-<script src="js/app.js?v=20261122u"></script>
-<script src="js/drive.js?v=20261122u"></script>
+<script src="js/tuning.js?v=20261122v"></script>
+<script src="js/chords.js?v=20261122v"></script>
+<script src="js/finger.js?v=20261122v"></script>
+<script src="js/demo.js?v=20261122v"></script>
+<script src="js/score.js?v=20261122v"></script>
+<script src="js/audio.js?v=20261122v"></script>
+<script src="js/app.js?v=20261122v"></script>
+<script src="js/drive.js?v=20261122v"></script>
+<script src="js/yt.js?v=20261122v"></script>
 </body>
 </html>

@@ -6,6 +6,8 @@
     ctx: null,
     master: null,
     comp: null,
+    out: null,
+    muted: false,
     buffers: new Map(),
     active: new Set(),
 
@@ -36,9 +38,26 @@
       master.connect(body);
       body.connect(lp);
       lp.connect(comp);
-      comp.connect(this.ctx.destination);
+      // 출력 게인 한 단계 — 원곡(유튜브)을 틀 때 앱 소리만 0으로 내리는 음소거가 여기서 걸린다
+      const out = this.ctx.createGain();
+      try { this.muted = global.localStorage.getItem('fc_mute') === '1'; } catch (e) { this.muted = false; }
+      out.gain.value = this.muted ? 0 : 1;
+      comp.connect(out);
+      out.connect(this.ctx.destination);
+      this.out = out;
       this.master = master;
       this.comp = comp;
+    },
+
+    setMuted: function (m) {
+      this.muted = !!m;
+      try { global.localStorage.setItem('fc_mute', this.muted ? '1' : '0'); } catch (e) { /* 저장 실패는 무시 */ }
+      if (this.out) {
+        const t = this.ctx.currentTime;
+        this.out.gain.cancelScheduledValues(t);
+        this.out.gain.setTargetAtTime(this.muted ? 0 : 1, t, 0.015);
+      }
+      return this.muted;
     },
 
     resume: function () {
@@ -139,7 +158,7 @@
       g.gain.setValueAtTime(accent ? 0.10 : 0.055, when);
       g.gain.exponentialRampToValueAtTime(0.0001, when + 0.05);
       o.connect(g);
-      g.connect(this.ctx.destination);
+      g.connect(this.out || this.ctx.destination);
       o.start(when);
       o.stop(when + 0.06);
     },

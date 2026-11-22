@@ -1,5 +1,5 @@
 /* 프렛 코치 서비스 워커 — 항상 네트워크 우선(업데이트가 바로 반영), 오프라인일 때만 캐시 */
-const CACHE = 'fretcoach-v9';
+const CACHE = 'fretcoach-v10';
 
 self.addEventListener('install', function () {
   self.skipWaiting();
@@ -25,6 +25,13 @@ self.addEventListener('fetch', function (event) {
       url.hostname === 'www.googleapis.com' ||
       /(^|\.)googleapis\.com$/.test(url.hostname) ||
       /(^|\.)googleusercontent\.com$/.test(url.hostname)) {
+    return;
+  }
+  // 유튜브(임베드·썸네일·플레이어 API)는 서비스 워커가 캐시하거나 가로채지 않는다 — 항상 브라우저가 직접 불러온다
+  if (/(^|\.)youtube\.com$/.test(url.hostname) ||
+      /(^|\.)youtube-nocookie\.com$/.test(url.hostname) ||
+      /(^|\.)ytimg\.com$/.test(url.hostname) ||
+      /(^|\.)googlevideo\.com$/.test(url.hostname)) {
     return;
   }
   // 다른 출처는 서비스 워커가 가로채지 않는다
