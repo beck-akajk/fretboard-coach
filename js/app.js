@@ -376,8 +376,8 @@
     function ghostGeom(note) {
       const padW = rBadge * 1.8;
       const padH = Math.min(gap * 0.5, rBadge * 1.15);
-      const wTop = padW * 0.34;
-      const wBot = padW * 0.46;
+      const wTop = padW * 0.3;
+      const wBot = padW * 0.42;
       return {
         x: xOf(note),
         y: yOf(note),
@@ -385,32 +385,37 @@
         padH: padH,
         wTop: wTop,
         wBot: wBot,
-        cy: yOf(note) - padH * 0.42 + wTop * 0.9,
-        botY: yOf(note) + Math.min(gap * 0.98, rBadge * 2.4)
+        neckY: yOf(note) + padH * 0.15,
+        botY: yOf(note) + Math.min(gap * 0.92, rBadge * 2.3)
       };
     }
     function ghostBody(note) {
       const g = ghostGeom(note);
       const c = colorOf(note.finger);
       const faint = !!note.faint;
-      const d = 'M' + (g.x - g.wTop).toFixed(1) + ' ' + g.cy.toFixed(1) +
-        ' A' + g.wTop.toFixed(1) + ' ' + g.wTop.toFixed(1) + ' 0 0 1 ' + (g.x + g.wTop).toFixed(1) + ' ' + g.cy.toFixed(1) +
+      const d = 'M' + (g.x - g.wTop).toFixed(1) + ' ' + g.neckY.toFixed(1) +
+        ' L' + (g.x + g.wTop).toFixed(1) + ' ' + g.neckY.toFixed(1) +
         ' L' + (g.x + g.wBot).toFixed(1) + ' ' + g.botY.toFixed(1) +
         ' L' + (g.x - g.wBot).toFixed(1) + ' ' + g.botY.toFixed(1) + ' Z';
-      out.push('<path d="' + d + '" fill="' + c + '" fill-opacity="' + (faint ? 0.05 : 0.12) + '" stroke="' + c +
-        '" stroke-opacity="' + (faint ? 0.18 : 0.38) + '" stroke-width="1.1" stroke-linejoin="round"/>');
+      out.push('<path d="' + d + '" fill="' + c + '" fill-opacity="' + (faint ? 0.04 : 0.1) + '" stroke="' + c +
+        '" stroke-opacity="' + (faint ? 0.16 : 0.3) + '" stroke-width="1" stroke-linejoin="round"/>');
+      // 손가락 마디 주름
+      const ky = (g.neckY + g.botY) / 2;
+      out.push('<path d="M' + (g.x - g.wTop * 0.9).toFixed(1) + ' ' + ky.toFixed(1) +
+        ' Q' + g.x.toFixed(1) + ' ' + (ky + 2.2).toFixed(1) + ' ' + (g.x + g.wTop * 0.9).toFixed(1) + ' ' + ky.toFixed(1) +
+        '" fill="none" stroke="' + c + '" stroke-opacity="' + (faint ? 0.18 : 0.34) + '" stroke-width="0.9"/>');
     }
     function ghostTip(note) {
       const g = ghostGeom(note);
       const c = colorOf(note.finger);
       const faint = !!note.faint;
-      // 마디(손끝) — 프렛 바로 뒤를 누르는 자리
+      // 손끝 마디 — 프렛 바로 뒤를 누르는 자리
       out.push('<ellipse cx="' + g.x.toFixed(1) + '" cy="' + g.y.toFixed(1) + '" rx="' + (g.padW / 2).toFixed(1) +
-        '" ry="' + (g.padH / 2).toFixed(1) + '" fill="' + c + '" fill-opacity="' + (faint ? 0.1 : 0.24) +
-        '" stroke="' + c + '" stroke-opacity="' + (faint ? 0.22 : 0.5) + '" stroke-width="1"/>');
+        '" ry="' + (g.padH / 2).toFixed(1) + '" fill="' + c + '" fill-opacity="' + (faint ? 0.12 : 0.3) +
+        '" stroke="' + c + '" stroke-opacity="' + (faint ? 0.24 : 0.6) + '" stroke-width="1.1"/>');
       if (note.finger) {
         out.push('<text x="' + g.x.toFixed(1) + '" y="' + (g.y + fs * 0.35).toFixed(1) + '" text-anchor="middle" font-size="' +
-          (faint ? fs - 1 : fs) + '" font-weight="800" fill="' + c + '" fill-opacity="' + (faint ? 0.45 : 0.92) + '">' +
+          (faint ? fs - 1 : fs) + '" font-weight="800" fill="' + c + '" fill-opacity="' + (faint ? 0.45 : 0.95) + '">' +
           note.finger + '</text>');
       }
     }
