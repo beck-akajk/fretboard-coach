@@ -124,7 +124,7 @@
   }
 
   // ------------------------------------------------------------- 마디 분석
-  function chooseShape(events, from, to, prevShape, mode) {
+  function chooseShape(events, from, to, prevShape, mode, open) {
     if (mode === 'position') return null;
     const seg = segNotesOf(events, from, to);
     if (!seg.length) return null;
@@ -143,7 +143,7 @@
     for (let i = 0; i < keys.length; i++) {
       if (Object.keys(perString[keys[i]]).length >= 3) return null; // 한 줄에서 3프렛 이상 이동 = 멜로디/리프
     }
-    const m = C.matchChord(seg, prevShape, mode === 'chord' ? 0.25 : 0.5);
+    const m = C.matchChord(seg, prevShape, mode === 'chord' ? 0.25 : 0.5, open);
     return m ? m.shape : null;
   }
 
@@ -164,24 +164,29 @@
     const events = bar.events || [];
     if (!events.length) return { events: [], shapes: [], prevShape: prevShape };
 
+    // 트랙의 튜닝(카포 제외)에 맞춰 코드 폼·코드명을 계산한다.
+    const open = (global.Tunings && global.Tunings.openFromTrack)
+      ? global.Tunings.openFromTrack(track) : C.STD_OPEN;
+    C.setTuning(open);
+
     const segs = splitSegments(bar, events, mode);
     const plan = positionPlan(events);
 
     let shapes = [];
     if (segs.length === 2) {
       // 반씩 나눠 폼이 실제로 다를 때만 나눈다
-      const a = chooseShape(events, segs[0].from, segs[0].to, prevShape, mode);
-      const b = chooseShape(events, segs[1].from, segs[1].to, a || prevShape, mode);
+      const a = chooseShape(events, segs[0].from, segs[0].to, prevShape, mode, open);
+      const b = chooseShape(events, segs[1].from, segs[1].to, a || prevShape, mode, open);
       if (a && b && a.name !== b.name) {
         shapes = [a, b];
       } else {
-        const whole = chooseShape(events, 0, events.length - 1, prevShape, mode) || a || b;
+        const whole = chooseShape(events, 0, events.length - 1, prevShape, mode, open) || a || b;
         segs.length = 0;
         segs.push({ from: 0, to: events.length - 1 });
         shapes = [whole];
       }
     } else {
-      shapes = [chooseShape(events, 0, events.length - 1, prevShape, mode)];
+      shapes = [chooseShape(events, 0, events.length - 1, prevShape, mode, open)];
     }
 
     const out = [];

@@ -345,12 +345,17 @@
         '" stroke="#5a6b85" stroke-width="' + w.toFixed(2) + '"/>');
     }
 
-    // 줄 이름 + 개방현 자리
-    const tuning = (track() && track().tuning) || {};
+    // 줄 이름 + 개방현 자리 — 현재 트랙의 튜닝을 그대로 반영(플랫 표기 포함)
+    const tinfo = (global.Tunings && track())
+      ? global.Tunings.identify(global.Tunings.openFromTrack(track())) : null;
     for (let s = 1; s <= 6; s++) {
       const y = TOP + rowOf(s) * gap;
-      const midi = tuning[s];
-      const name = midi == null ? '?' : NOTE_NAMES[((midi % 12) + 12) % 12];
+      let name = '?';
+      if (tinfo) name = global.Tunings.labelFor(tinfo, s);
+      else {
+        const midi = track() && track().tuning ? track().tuning[s] : null;
+        name = midi == null ? '?' : NOTE_NAMES[((midi % 12) + 12) % 12];
+      }
       out.push('<text x="4" y="' + (y + 3.4).toFixed(1) + '" font-size="' + (narrow ? 8.5 : 10.5) +
         '" font-weight="700" fill="#6b7690">' + s + '·' + name + '</text>');
     }
@@ -632,8 +637,34 @@
     }
   }
 
+  // 현재 트랙 튜닝 배지 — 곡 정보 바로 아래, 폰 한 화면에서 바로 보이는 자리
+  function renderTuning() {
+    const row = $('tuningRow');
+    if (!row) return;
+    const tr = track();
+    if (!tr || !global.Tunings) { row.hidden = true; return; }
+    const info = global.Tunings.identify(global.Tunings.openFromTrack(tr));
+    const capo = tr.capo || 0;
+    const badge = $('tuningBadge');
+    $('tuningName').textContent = info.name;
+    $('tuningNotes').textContent = info.notes.join(' ');
+    const capoEl = $('tuningCapo');
+    capoEl.hidden = !capo;
+    capoEl.textContent = capo ? '카포 ' + capo : '';
+    const warn = $('tuningWarn');
+    warn.hidden = !info.alt;
+    warn.textContent = info.custom ? '목록에 없는 튜닝' : '줄 다시 맞추기';
+    badge.classList.toggle('alt', !!info.alt);
+    badge.classList.toggle('custom', !!info.custom);
+    badge.setAttribute('title', info.name + ' · ' + info.ko + ' · ' + info.notes.join(' ') +
+      (capo ? ' · 카포 ' + capo + '프렛' : '') +
+      (info.alt ? '\n이 곡은 기본 튜닝이 아닙니다. 기타 줄을 이 튜닝으로 맞춘 뒤 연습하세요.' : ''));
+    row.hidden = false;
+  }
+
   function renderAll() {
     drawFretboard();
+    renderTuning();
     renderNow();
     updateStripCurrent();
     updateTransport();

@@ -55,6 +55,44 @@ body{
 .song-title{font-size:15px;font-weight:700;letter-spacing:-.2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .song-meta{font-size:11.5px;color:var(--muted);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
+/* 현재 트랙 튜닝 배지 — 곡 정보 바로 아래 */
+.tuning-row{display:flex;align-items:center;gap:6px;margin-top:6px;flex-wrap:wrap}
+.tuning-badge{
+  display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap;
+  padding:3px 10px 3px 8px;border-radius:999px;
+  background:var(--panel2);border:1px solid var(--line);
+  font-size:11.5px;line-height:1.6;max-width:100%;
+}
+.tuning-badge .tb-ico{font-size:11px;opacity:.85}
+.tuning-badge .tb-name{font-weight:800;color:var(--text);letter-spacing:-.1px}
+.tuning-badge .tb-dot{color:var(--dim);margin:0 -2px}
+.tuning-badge .tb-notes{
+  font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px;
+  color:var(--muted);letter-spacing:.02em;white-space:nowrap;
+}
+.tuning-badge .tb-capo{
+  font-size:10px;font-weight:800;color:#cfe0ff;
+  background:#2c3a55;border-radius:999px;padding:0 7px;white-space:nowrap;
+}
+.tuning-badge .tb-warn{
+  font-size:9.5px;font-weight:800;letter-spacing:-.1px;color:#ffcf8a;
+  background:rgba(255,182,77,.16);border-radius:999px;padding:0 7px;white-space:nowrap;
+}
+/* 기본 튜닝이 아닐 때 — 줄을 다시 맞춰야 한다는 걸 색으로 바로 알린다 */
+.tuning-badge.alt{
+  border-color:rgba(255,182,77,.6);
+  background:linear-gradient(180deg,rgba(255,182,77,.16),rgba(255,182,77,.05));
+  box-shadow:0 0 0 1px rgba(255,182,77,.08) inset;
+}
+.tuning-badge.alt .tb-name{color:#ffd79a}
+.tuning-badge.alt .tb-notes{color:#e8cba1}
+.tuning-badge.custom{border-style:dashed}
+@media (max-width:430px){
+  .tuning-badge{font-size:11px;gap:5px;padding:3px 9px 3px 7px}
+  .tuning-badge .tb-notes{font-size:10.5px}
+  .tuning-badge .tb-warn{font-size:9px}
+}
+
 .ctl-row{display:flex;align-items:center;gap:8px;margin-top:10px;flex-wrap:wrap}
 .field{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted)}
 .field select{

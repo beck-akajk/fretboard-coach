@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0f1115">
 <title>프렛 코치 · 기타 타브 운지</title>
-<link rel="stylesheet" href="css/app.css?v=20261122m">
+<link rel="stylesheet" href="css/app.css?v=20261122n">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -29,6 +29,17 @@
     <div class="song-row">
       <div class="song-title" id="songTitle">연습 데모 · D – Bm7 – G – A</div>
       <div class="song-meta" id="songMeta">자작 아르페지오 + 리프</div>
+    </div>
+
+    <div class="tuning-row" id="tuningRow" hidden>
+      <div class="tuning-badge" id="tuningBadge">
+        <span class="tb-ico" aria-hidden="true">🎸</span>
+        <span class="tb-name" id="tuningName">Standard</span>
+        <span class="tb-dot">·</span>
+        <span class="tb-notes" id="tuningNotes">E A D G B E</span>
+        <span class="tb-capo" id="tuningCapo" hidden>카포 2</span>
+        <span class="tb-warn" id="tuningWarn" hidden>줄 다시 맞추기</span>
+      </div>
     </div>
 
     <div class="ctl-row">
@@ -137,11 +148,12 @@ window.addEventListener('unhandledrejection', function (e) {
 });
 </script>
 <script src="vendor/alphaTab.min.js"></script>
-<script src="js/chords.js?v=20261122m"></script>
-<script src="js/finger.js?v=20261122m"></script>
-<script src="js/demo.js?v=20261122m"></script>
-<script src="js/score.js?v=20261122m"></script>
-<script src="js/audio.js?v=20261122m"></script>
-<script src="js/app.js?v=20261122m"></script>
+<script src="js/tuning.js?v=20261122n"></script>
+<script src="js/chords.js?v=20261122n"></script>
+<script src="js/finger.js?v=20261122n"></script>
+<script src="js/demo.js?v=20261122n"></script>
+<script src="js/score.js?v=20261122n"></script>
+<script src="js/audio.js?v=20261122n"></script>
+<script src="js/app.js?v=20261122n"></script>
 </body>
 </html>

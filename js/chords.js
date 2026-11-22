@@ -1,6 +1,14 @@
 /* 프렛 코치 — 코드 폼 라이브러리
  * frets / fingers 배열은 [6번줄, 5번줄, 4번줄, 3번줄, 2번줄, 1번줄] 순서.
  * -1 = 뮤트(x), 0 = 개방현.
+ *
+ * 튜닝 연동:
+ * - 아래 오픈/바레 폼은 표준 튜닝(STD_OPEN) 기준으로 적혀 있다.
+ * - 각 폼은 "근음 대비 각 줄의 실제 음정(반음)" 템플릿으로 바꿔 두고,
+ *   현재 트랙의 개방현 음정(open)에 맞춰 프렛을 다시 계산한다.
+ *   그래서 Drop D / Drop C / Open G / DADGAD … 에서도 각 줄의 실제 음정에 맞는
+ *   코드명과 기준 폼이 나온다. (예: Drop D 개방 6·5·4번줄 = D5)
+ * - 표준 튜닝에서는 손으로 적은 원본 폼을 그대로 쓴다(기존 동작 보존).
  */
 (function (global) {
   'use strict';
@@ -25,15 +33,18 @@
     '5':  { label: '5',     intervals: [0, 7] }
   };
 
-  const shapes = [];
+  const baseShapes = [];      // 표준 튜닝 기준 손으로 적은 폼
+  const shapes = [];          // 현재 튜닝에 맞춰 계산된 폼 (finger.js 가 이 배열을 본다)
   const seen = new Set();
+  const seenTpl = new Set();
+  const templates = [];       // 근음 대비 음정 템플릿
 
   function add(name, frets, fingers, opt) {
     const key = frets.join(',');
     if (seen.has(key)) return;
     seen.add(key);
     const o = opt || {};
-    shapes.push({
+    baseShapes.push({
       name: name,
       frets: frets,
       fingers: fingers,
@@ -123,10 +134,189 @@
   // 파워 코드 (5도만)
   for (let n = 0; n <= 12; n++) {
     const pc6 = (4 + n) % 12;
-    add(PC[pc6] + '5', [n, n + 2, n + 2, -1, -1, -1], [-1, 1, 3, 4, -1, -1], { root: pc6, quality: '5', form: '파워' });
+    add(PC[pc6] + '5', [n, n + 2, n + 2, -1, -1, -1], [1, 3, 4, -1, -1, -1], { root: pc6, quality: '5', form: '파워' });
     const pc5 = (9 + n) % 12;
     add(PC[pc5] + '5', [-1, n, n + 2, n + 2, -1, -1], [-1, 1, 3, 4, -1, -1], { root: pc5, quality: '5', form: '파워' });
   }
+
+  // ------------------------------------------------- 튜닝별 폼 계산 (음정 템플릿)
+  function pcOf(m) { return ((m % 12) + 12) % 12; }
+
+  function templateOf(shape) {
+    let rootMidi = null;
+    const midi = [];
+    for (let i = 0; i < 6; i++) {
+      const f = shape.frets[i];
+      if (f < 0) { midi.push(null); continue; }
+      const m = STD_OPEN[i] + f;
+      midi.push(m);
+      if (rootMidi == null && pcOf(m) === shape.root) rootMidi = m;
+    }
+    if (rootMidi == null) return null;
+    const intervals = midi.map(function (m) { return m == null ? null : m - rootMidi; });
+    return {
+      quality: shape.quality,
+      form: shape.form,
+      intervals: intervals,
+      fingers: shape.fingers.slice()
+    };
+  }
+
+  baseShapes.forEach(function (sh) {
+    const tpl = templateOf(sh);
+    if (!tpl) return;
+    const key = tpl.quality + '|' + tpl.form + '|' + tpl.intervals.join(',');
+    if (seenTpl.has(key)) return;
+    seenTpl.add(key);
+    templates.push(tpl);
+  });
+
+  function genericFingers(frets) {
+    const out = [-1, -1, -1, -1, -1, -1];
+    const groups = {};
+    for (let i = 0; i < 6; i++) {
+      if (frets[i] > 0) {
+        if (!groups[frets[i]]) groups[frets[i]] = [];
+        groups[frets[i]].push(i);
+      } else if (frets[i] === 0) {
+        out[i] = 0;
+      }
+    }
+    const fs = Object.keys(groups).map(Number).sort(function (a, b) { return a - b; });
+    let finger = 1;
+    for (let gi = 0; gi < fs.length; gi++) {
+      const idxs = groups[fs[gi]].slice().sort(function (a, b) { return b - a; }); // 6번줄부터
+      if (gi === 0 && idxs.length >= 2) {
+        idxs.forEach(function (i) { out[i] = 1; });   // 첫 프렛 여러 줄 = 검지 바레
+        finger = 2;
+        continue;
+      }
+      for (let k = 0; k < idxs.length; k++) {
+        out[idxs[k]] = Math.min(4, finger);
+        if (finger < 4) finger++;
+      }
+    }
+    return out;
+  }
+
+  function fingersFor(frets, src) {
+    let ok = true;
+    const byFinger = {};
+    for (let i = 0; i < 6; i++) {
+      const f = frets[i], fin = src[i];
+      if (f > 0) {
+        if (!(fin > 0) || fin > 4) { ok = false; break; }
+        if (byFinger[fin] != null && byFinger[fin] !== f) { ok = false; break; }
+        byFinger[fin] = f;
+      } else if (fin > 0) { ok = false; break; }
+    }
+    return ok ? src.slice() : genericFingers(frets);
+  }
+
+  function sameNumbers(a, b) {
+    if (a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+    return true;
+  }
+
+  // 계산된 프렛이 실제로 그 코드(근음+종류)의 구성음만 내는지 확인
+  function tonesMatch(frets, open, rootMidi, quality) {
+    const q = QUALITIES[quality] || QUALITIES[''];
+    const want = {};
+    const rootPc = pcOf(rootMidi);
+    q.intervals.forEach(function (iv) { want[(rootPc + iv) % 12] = true; });
+    const got = {};
+    let n = 0;
+    for (let i = 0; i < 6; i++) {
+      const f = frets[i];
+      if (f < 0) continue;
+      if (open[i] == null) return false;
+      got[pcOf(open[i] + f)] = true;
+      n++;
+    }
+    if (!n) return false;
+    const wk = Object.keys(want);
+    const gk = Object.keys(got);
+    if (wk.length !== gk.length) return false;
+    for (let i = 0; i < wk.length; i++) if (!got[wk[i]]) return false;
+    return true;
+  }
+
+  function buildFor(open) {
+    // 표준 튜닝은 손으로 적은 폼을 그대로 (기존 동작 그대로 보존)
+    if (sameNumbers(open, STD_OPEN)) return baseShapes.slice();
+
+    const out = [];
+    const got = {};
+    for (let ti = 0; ti < templates.length; ti++) {
+      const tpl = templates[ti];
+      const openShape = tpl.form === '오픈';
+      for (let a = 0; a < 6; a++) {
+        if (tpl.intervals[a] !== 0) continue;
+        if (open[a] == null) continue;
+        for (let af = 0; af <= 14; af++) {
+          const rootMidi = open[a] + af;
+          const frets = [];
+          let ok = true, hasOpen = false, voiced = 0, minF = 99, maxF = -1, fretted = 0;
+          for (let i = 0; i < 6; i++) {
+            const iv = tpl.intervals[i];
+            if (iv == null) { frets.push(-1); continue; }
+            if (open[i] == null) { ok = false; break; }
+            const f = rootMidi + iv - open[i];
+            if (f < 0 || f > 15) { ok = false; break; }
+            frets.push(f);
+            voiced++;
+            if (f === 0) hasOpen = true;
+            else {
+              fretted++;
+              if (f < minF) minF = f;
+              if (f > maxF) maxF = f;
+            }
+          }
+          if (!ok || !voiced) continue;
+          if (fretted && maxF - minF > 5) continue;   // 손이 닿지 않는 스트레치
+          if (openShape && !hasOpen) continue;        // 오픈 폼은 개방현이 울릴 때만
+          if (!tonesMatch(frets, open, rootMidi, tpl.quality)) continue;  // 실제 울리는 음이 그 코드여야
+          const name = PC[pcOf(rootMidi)] + (QUALITIES[tpl.quality] || QUALITIES['']).label;
+          const key = name + '|' + frets.join(',');
+          if (got[key]) continue;
+          got[key] = true;
+          out.push({
+            name: name,
+            frets: frets,
+            fingers: fingersFor(frets, tpl.fingers),
+            root: pcOf(rootMidi),
+            quality: tpl.quality,
+            form: tpl.form,
+            barre: null
+          });
+        }
+      }
+    }
+    return out;
+  }
+
+  let currentOpen = STD_OPEN.slice();
+  let currentKey = STD_OPEN.join(',');
+
+  function setTuning(open) {
+    const arr = [];
+    const src = (open && open.length === 6) ? open : null;
+    for (let i = 0; i < 6; i++) {
+      const m = src && src[i] != null && isFinite(src[i]) ? Math.round(src[i]) : STD_OPEN[i];
+      arr.push(m);
+    }
+    const key = arr.join(',');
+    if (key === currentKey && shapes.length) return shapes;
+    const list = buildFor(arr);
+    shapes.length = 0;
+    for (let i = 0; i < list.length; i++) shapes.push(list[i]);
+    currentOpen = arr;
+    currentKey = key;
+    return shapes;
+  }
+
+  function tuningOpen() { return currentOpen.slice(); }
 
   // -------------------------------------------------------------- 표시 문자열
   function shapeLabel(shape) {
@@ -151,7 +341,7 @@
     const out = {};
     for (let s = 1; s <= 6; s++) {
       let best = null, bestC = 0;
-      const m = counts[s];
+      const m = counts[s] || {};
       for (const k in m) {
         if (m[k] > bestC) { bestC = m[k]; best = Number(k); }
       }
@@ -168,6 +358,13 @@
     return set;
   }
 
+  // 음의 실제 음정 — 악보에서 계산된 midi 를 우선 쓰고, 없으면 현재 튜닝으로 계산
+  function midiOf(n, open) {
+    if (n.midi != null && isFinite(n.midi)) return n.midi;
+    const base = open[6 - n.string];
+    return (base == null ? STD_OPEN[6 - n.string] : base) + n.fret;
+  }
+
   /**
    * 폼과 구간 음들을 대조한다.
    * - 같은 줄·같은 프렛 : 강한 일치 (+2.6)
@@ -175,7 +372,8 @@
    * - 폼에 없는 줄이지만 코드 구성음 : 개방현 베이스 등 (+1.0)
    * - 코드 구성음도 아님 : 감점 (-2.2)
    */
-  function chordPipeline(shape, segNotes) {
+  function chordPipeline(shape, segNotes, open) {
+    const op = open || currentOpen;
     let exact = 0, extra = 0, harm = 0, bad = 0;
     const usedStrings = {};
     const tones = shapeTones(shape);
@@ -183,7 +381,7 @@
     let lowest = null, lowestMidi = 999;
     for (let i = 0; i < segNotes.length; i++) {
       const n = segNotes[i];
-      const m = (n.midi != null ? n.midi : (STD_OPEN[6 - n.string] + n.fret));
+      const m = midiOf(n, op);
       if (m < lowestMidi) { lowestMidi = m; lowest = n; }
     }
     let score = 0;
@@ -191,7 +389,7 @@
       const n = segNotes[i];
       usedStrings[n.string] = true;
       const f = shape.frets[6 - n.string];
-      const pc = (((n.midi != null ? n.midi : (STD_OPEN[6 - n.string] + n.fret)) % 12) + 12) % 12;
+      const pc = ((midiOf(n, op) % 12) + 12) % 12;
       const w = (lowest && n === lowest) ? 1.7 : 1;
       if (f === n.fret) { score += 2.6 * w; exact++; }
       else if (f >= 0) {
@@ -212,14 +410,16 @@
     const qPenalty = { '6': 0.7, 'm6': 0.9, 'sus2': 0.5, 'sus4': 0.6, 'add9': 0.5, 'maj7': 0.3, '7': 0.2, 'm7': 0.15, '5': 0.5 };
     score -= (qPenalty[shape.quality] || 0);
     if (lowest && shape.root >= 0) {
-      const lowPc = (((lowest.midi != null ? lowest.midi : (STD_OPEN[6 - lowest.string] + lowest.fret)) % 12) + 12) % 12;
+      const lowPc = ((midiOf(lowest, op) % 12) + 12) % 12;
       if (lowPc === shape.root) score += 1.2;
     }
     return { exact: exact, extra: extra, harm: harm, bad: bad, ghost: ghost, score: score };
   }
 
-  function matchChord(segNotes, prevShape, ratio) {
+  function matchChord(segNotes, prevShape, ratio, open) {
     if (!segNotes.length) return null;
+    const op = open || currentOpen;
+    if (op !== currentOpen) setTuning(op);
     const n = segNotes.length;
     const r0 = ratio == null ? 0.5 : ratio;
     const minExact = n <= 2 ? n : Math.max(2, Math.ceil(n * r0));
@@ -229,7 +429,7 @@
     let best = null;
     for (let i = 0; i < shapes.length; i++) {
       const sh = shapes[i];
-      const r = chordPipeline(sh, segNotes);
+      const r = chordPipeline(sh, segNotes, op);
       const ok = r.exact >= minExact && r.bad <= maxBad && r.score >= minScore &&
         (r.exact + r.harm) >= Math.ceil(n * 0.5);
       if (!ok) continue;
@@ -243,7 +443,7 @@
 
     // 이전 폼이 이 구간을 잘 덮으면 그 폼을 유지(손 이동 최소화)
     if (prevShape) {
-      const r = chordPipeline(prevShape, segNotes);
+      const r = chordPipeline(prevShape, segNotes, op);
       const keepOk = r.bad <= maxBad && r.exact >= minExact;
       if (keepOk && (!best || best.shape.name !== prevShape.name)) {
         const keep = { shape: prevShape, exact: r.exact, extra: r.extra, harm: r.harm, bad: r.bad, ghost: r.ghost, score: r.score + 0.9 };
@@ -366,11 +566,17 @@
     return g;
   }
 
+  // 처음에는 표준 튜닝 폼으로 채워 둔다 (setTuning 전에도 동작)
+  shapes.push.apply(shapes, baseShapes);
+
   global.Chords = {
     PC: PC,
     STD_OPEN: STD_OPEN,
     QUALITIES: QUALITIES,
     shapes: shapes,
+    templates: templates,
+    setTuning: setTuning,
+    tuningOpen: tuningOpen,
     matchChord: matchChord,
     assignForShape: assignForShape,
     ghostsForShape: ghostsForShape,
