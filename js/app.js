@@ -1101,10 +1101,13 @@
       if (S.playing) { stopPlayback(); startPlayback(); }
     });
     // 느린 연습 속도 빠른 선택(0.2× ~ 1×)
-    $('speedPresets').addEventListener('click', function (e) {
-      const b = e.target.closest('button[data-speed]');
-      if (b) setSpeed(Number(b.getAttribute('data-speed')));
-    });
+    const presetRow = $('speedPresets');
+    if (presetRow) {
+      presetRow.addEventListener('click', function (e) {
+        const b = e.target.closest('button[data-speed]');
+        if (b) setSpeed(Number(b.getAttribute('data-speed')));
+      });
+    }
 
     $('loopA').addEventListener('click', function () {
       const ev = S.flat[S.cur];

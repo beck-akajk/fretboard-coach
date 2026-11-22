@@ -92,7 +92,7 @@
 
 - 빌드 없음. `index.html` + `css/` + `js/` + `vendor/`(alphaTab) 그대로 정적 호스팅.
 - `mobile.html` — 데스크톱에서 390×844 폰 화면으로 확인하는 보조 페이지.
-- 파일을 고친 뒤에는 `index.html`의 `?v=` 값을 올려 캐시를 갱신하세요(지금은 `20261122t`, `sw.js` 캐시는 `fretcoach-v8`).
+- 파일을 고친 뒤에는 `index.html`의 `?v=` 값을 올려 캐시를 갱신하세요(지금은 `20261122u`, `sw.js` 캐시는 `fretcoach-v9`).
 - 보관함 연동은 `js/drive.js` — Apps Script API 호출(`list`·`get`·`upload`·`delete`), Base64 변환, 목록 패널 렌더링이 모두 여기 있습니다.
 - 운지 엔진: `js/chords.js`(코드 폼 사전·매칭 점수), `js/finger.js`(구간 분할·손가락 배정·포지션 DP), `js/score.js`(GP 파싱 정규화).
 - 코드표 그림과 지판의 흐릿한 손가락·바레 막대는 `js/app.js`의 `chordDiagramSVG()` / `barreGroups()` / `ghostBody()`·`ghostTip()`에서 그립니다.
