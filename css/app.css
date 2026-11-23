@@ -149,12 +149,26 @@ main{display:flex;flex-direction:column;gap:10px;margin-top:10px}
 .legend .pad{width:22px;height:13px;border-radius:7px;border:1.2px solid #7a86a0;background:rgba(120,135,165,.2)}
 .legend .barre{width:9px;height:17px;border-radius:5px;border:1.2px solid #5b9ede;background:rgba(74,158,255,.26)}
 .legend .ring{width:14px;height:14px;border-radius:50%;border:1.3px dashed #8b97b0;background:rgba(139,151,176,.14)}
+.legend .next-ring{width:14px;height:14px;border-radius:50%;border:1.7px dashed #ffd166;background:rgba(255,209,102,.2)}
+.legend .anchor{width:15px;height:15px;border-radius:50%;border:2px solid #34d399;background:rgba(52,211,153,.18)}
+
+.next-chord-box{
+  min-width:104px;padding:7px 9px;border-radius:12px;
+  background:rgba(28,34,48,.78);border:1px dashed #3e4a66;
+  display:flex;align-items:center;gap:7px;
+}
+.next-chord-info{display:flex;flex-direction:column;justify-content:center;min-width:0}
+.next-chord-cap{font-size:10px;font-weight:700;color:#ffd166;letter-spacing:-.01em}
+.next-chord-name{font-size:15px;font-weight:800;color:#e8eef9;line-height:1.2}
+.next-chord-diagram{width:104px;flex-shrink:0}
+.next-chord-diagram svg{width:100%;height:auto;display:block}
 
 /* 폰 폭: 코드 카드를 한 줄 전체로 넓혀 지판 그림과 안내가 겹치지 않게 */
 @media (max-width:560px){
   .now-head{flex-direction:column;gap:8px}
-  .chord-box{width:100%}
+  .chord-box,.next-chord-box{width:100%}
   .chord-diagram{width:162px}
+  .next-chord-diagram{width:136px}
   .now-text{width:100%}
 }
 

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0f1115">
 <title>프렛 코치 · 기타 타브 운지</title>
-<link rel="stylesheet" href="css/app.css?v=20261122v">
+<link rel="stylesheet" href="css/app.css?v=20261123a">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -121,6 +121,13 @@
           </div>
           <div class="chord-diagram" id="chordDiagram" aria-live="polite"></div>
         </div>
+        <div class="next-chord-box" id="nextChordBox" hidden>
+          <div class="next-chord-info">
+            <div class="next-chord-cap">다음 코드 →</div>
+            <div class="next-chord-name" id="nextChordName">—</div>
+          </div>
+          <div class="next-chord-diagram" id="nextChordDiagram"></div>
+        </div>
         <div class="now-text">
           <div class="hint-main" id="hintMain">음표를 고르면 운지가 나옵니다</div>
           <div class="hint-sub" id="hintSub"></div>
@@ -137,7 +144,9 @@
         <span class="lg"><i class="dot f2">2</i>중지</span>
         <span class="lg"><i class="dot f3">3</i>약지</span>
         <span class="lg"><i class="dot f4">4</i>소지</span>
+        <span class="lg"><i class="anchor"></i>안 떼도 됨</span>
         <span class="lg"><i class="pad ghost"></i>유지(흐릿)</span>
+        <span class="lg"><i class="next-ring"></i>바로 다음 음</span>
         <span class="lg"><i class="ring"></i>이번 마디 예고</span>
         <span class="lg"><i class="barre"></i>바레</span>
       </div>
@@ -212,14 +221,14 @@ window.addEventListener('unhandledrejection', function (e) {
 });
 </script>
 <script src="vendor/alphaTab.min.js"></script>
-<script src="js/tuning.js?v=20261122v"></script>
-<script src="js/chords.js?v=20261122v"></script>
-<script src="js/finger.js?v=20261122v"></script>
-<script src="js/demo.js?v=20261122v"></script>
-<script src="js/score.js?v=20261122v"></script>
-<script src="js/audio.js?v=20261122v"></script>
-<script src="js/app.js?v=20261122v"></script>
-<script src="js/drive.js?v=20261122v"></script>
-<script src="js/yt.js?v=20261122v"></script>
+<script src="js/tuning.js?v=20261123a"></script>
+<script src="js/chords.js?v=20261123a"></script>
+<script src="js/finger.js?v=20261123a"></script>
+<script src="js/demo.js?v=20261123a"></script>
+<script src="js/score.js?v=20261123a"></script>
+<script src="js/audio.js?v=20261123a"></script>
+<script src="js/app.js?v=20261123a"></script>
+<script src="js/drive.js?v=20261123a"></script>
+<script src="js/yt.js?v=20261123a"></script>
 </body>
 </html>

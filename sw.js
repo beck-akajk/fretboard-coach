@@ -1,5 +1,5 @@
 /* 프렛 코치 서비스 워커 — 항상 네트워크 우선(업데이트가 바로 반영), 오프라인일 때만 캐시 */
-const CACHE = 'fretcoach-v10';
+const CACHE = 'fretcoach-v11';
 
 self.addEventListener('install', function () {
   self.skipWaiting();

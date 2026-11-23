@@ -277,8 +277,30 @@
     const BOT = narrow ? 14 : 22;
     const gap = (H - TOP - BOT) / 5;
     const ev = S.flat[S.cur] || null;
+    const nextEv = S.flat[S.cur + 1] || null;
     const fingers = ev ? ev.fingers : [];
     const ghosts = ev ? ev.ghosts : [];
+
+    // --- 바로 다음 음 & 안 떼도 되는(고정) 손가락 계산 ---
+    const nextKeys = {};
+    const nextOnly = [];
+    if (nextEv && nextEv.fingers) {
+      nextEv.fingers.forEach(function (f) {
+        nextKeys[f.string + ':' + f.fret] = f;
+      });
+    }
+    const anchorKeys = {};
+    if (nextEv) {
+      const nextHold = {};
+      (nextEv.fingers || []).concat(nextEv.ghosts || []).forEach(function (f) {
+        if (f.finger && f.fret > 0) nextHold[f.finger + ':' + f.string + ':' + f.fret] = true;
+      });
+      fingers.concat(ghosts).forEach(function (f) {
+        if (f.finger && f.fret > 0 && nextHold[f.finger + ':' + f.string + ':' + f.fret]) {
+          anchorKeys[f.string + ':' + f.fret] = true;
+        }
+      });
+    }
 
     // --- 이번 마디 미리보기 : 마디 안에 등장하는 모든 음을 지판에 함께 보여 준다.
     // 같은 줄·프렛에는 하나만 그린다 — 우선순위 현재 음 > 유지 폼(실루엣) > 다가올 음 > 지나간 음.
@@ -299,10 +321,17 @@
             const key = f.string + ':' + f.fret;
             if (taken[key]) continue;
             taken[key] = true;
-            (future ? upcoming : passed).push(f);
+            if (future && nextKeys[key]) nextOnly.push(f);
+            else (future ? upcoming : passed).push(f);
           }
         }
       }
+      // 다음 마디 첫 음처럼 이번 마디에 없던 바로 다음 음도 현재 지판 범위 안이면 예고
+      Object.keys(nextKeys).forEach(function (key) {
+        if (!taken[key]) {
+          nextOnly.push(nextKeys[key]);
+        }
+      });
     }
 
     // 지판은 1~12프렛을 항상 같은 자리에 고정으로 보여 준다(실제 기타 넥과 같은 위치 감각).
@@ -392,12 +421,18 @@
     }
     function yOf(note) { return TOP + rowOf(note.string) * gap; }
 
-    // 지금 짚는 음 : 불투명 배지
+    // 지금 짚는 음 : 불투명 배지 (+ 안 떼도 되는 고정 손가락은 민트 이중 링)
     function badge(note) {
       const y = yOf(note);
       const x = xOf(note);
       const label = note.finger ? String(note.finger) : (note.fret === 0 ? '0' : '·');
       const c = colorOf(note.finger);
+      if (anchorKeys[note.string + ':' + note.fret]) {
+        out.push('<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="' + (rBadge + 3.4).toFixed(1) +
+          '" fill="none" stroke="#34d399" stroke-width="2" stroke-opacity="0.92"/>');
+        out.push('<circle cx="' + (x + rBadge + 1.5).toFixed(1) + '" cy="' + (y - rBadge - 1.5).toFixed(1) +
+          '" r="3" fill="#34d399" stroke="#0b0e14" stroke-width="1"/>');
+      }
       out.push('<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="' + rBadge + '" fill="' + c + '" filter="url(#glow)" opacity="0.97"/>');
       out.push('<text x="' + x.toFixed(1) + '" y="' + (y + rBadge * 0.36).toFixed(1) + '" text-anchor="middle" font-size="' +
         (rBadge * 0.95).toFixed(1) + '" font-weight="800" fill="#0b0e14">' + label + '</text>');
@@ -447,20 +482,36 @@
         '" stroke="' + c + '" stroke-opacity="' + (faint ? 0.24 : 0.6) + '" stroke-width="1.1"/>');
       if (note.finger) {
         out.push('<text x="' + g.x.toFixed(1) + '" y="' + (g.y + fs * 0.35).toFixed(1) + '" text-anchor="middle" font-size="' +
-          (faint ? fs - 1 : fs) + '" font-weight="800" fill="' + c + '" fill-opacity="' + (faint ? 0.45 : 0.95) + '">' +
+          (faint ? fs - 1 : fs) + '" font-weight="800" fill="' + c + '" fill-opacity="0.95">' +
           note.finger + '</text>');
+      }
+      if (anchorKeys[note.string + ':' + note.fret]) {
+        out.push('<ellipse cx="' + g.x.toFixed(1) + '" cy="' + g.y.toFixed(1) + '" rx="' + (g.padW / 2 + 2.6).toFixed(1) +
+          '" ry="' + (g.padH / 2 + 2.6).toFixed(1) + '" fill="none" stroke="#34d399" stroke-width="1.6" stroke-opacity="0.82"/>');
       }
     }
 
     // 마디 미리보기 : 다가올 음은 점선 테두리 + 은은한 채움(손가락 번호 작게),
     // 이미 지나간 음은 한 단계 더 흐린 점으로 남겨 마디 흐름이 지판만 봐도 보이게 한다.
-    function previewMark(note, future) {
+    function previewMark(note, mode) {
+      if (note.fret > 0 && (note.fret < start || note.fret >= start + FRETS)) return;
       const x = xOf(note);
       const y = yOf(note);
       const c = colorOf(note.finger);
-      if (!future) {
+      if (mode === 'past') {
         out.push('<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="' + (rBadge * 0.6).toFixed(1) +
           '" fill="' + c + '" fill-opacity="0.14" stroke="' + c + '" stroke-opacity="0.28" stroke-width="0.8"/>');
+        return;
+      }
+      if (mode === 'next') {
+        const r = rBadge * 0.95;
+        out.push('<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="' + r.toFixed(1) +
+          '" fill="' + c + '" fill-opacity="0.26" stroke="#ffd166" stroke-opacity="0.95" stroke-width="1.8" stroke-dasharray="3.5 2"/>');
+        const label = note.finger ? String(note.finger) : (note.fret === 0 ? '0' : '');
+        if (label) {
+          out.push('<text x="' + x.toFixed(1) + '" y="' + (y + r * 0.34).toFixed(1) + '" text-anchor="middle" font-size="' +
+            (r * 0.92).toFixed(1) + '" font-weight="800" fill="#ffd166">' + label + '</text>');
+        }
         return;
       }
       const r = rBadge * 0.8;
@@ -484,8 +535,8 @@
     });
 
     // 흐릿한 손가락을 먼저 깔고, 그 위에 바레 막대, 맨 위에 지금 짚는 음 배지
-    // (지나간 음 → 유지 폼 → 바레 → 다가올 음 → 현재 음 순서로 겹친다)
-    passed.forEach(function (n) { previewMark(n, false); });
+    // (지나간 음 → 유지 폼 → 바레 → 다가올 음 → 바로 다음 음 → 현재 음 순서로 겹친다)
+    passed.forEach(function (n) { previewMark(n, 'past'); });
     const shownGhosts = ghosts.filter(function (g) { return !(g.fret > 0 && inBarre[g.string + ':' + g.fret]); });
     shownGhosts.forEach(ghostBody);
     shownGhosts.forEach(ghostTip);
@@ -507,7 +558,8 @@
         '" text-anchor="middle" font-size="' + fs + '" font-weight="800" fill="' + c + '" fill-opacity="0.9">' + b.finger + '</text>');
     });
 
-    upcoming.forEach(function (n) { previewMark(n, true); });
+    upcoming.forEach(function (n) { previewMark(n, 'upcoming'); });
+    nextOnly.forEach(function (n) { previewMark(n, 'next'); });
     fingers.forEach(badge);
 
     if (!ev) {
@@ -543,6 +595,9 @@
     const chordNameEl = $('chordName');
     const chordShapeEl = $('chordShape');
     const chordDiagEl = $('chordDiagram');
+    const nextChordBox = $('nextChordBox');
+    const nextChordName = $('nextChordName');
+    const nextChordDiag = $('nextChordDiagram');
     const main = $('hintMain');
     const sub = $('hintSub');
     const next = $('hintNext');
@@ -551,6 +606,7 @@
       chordNameEl.textContent = '—';
       chordShapeEl.textContent = '';
       chordDiagEl.innerHTML = '';
+      if (nextChordBox) nextChordBox.hidden = true;
       main.textContent = '음이 없습니다';
       sub.textContent = '';
       next.textContent = '';
@@ -572,6 +628,27 @@
       chordShapeEl.textContent = '1번 손가락 ' + ev.position + '프렛';
       chordDiagEl.innerHTML = '';
       if (capEl) capEl.textContent = '기준 코드 폼';
+    }
+
+    // 다음 코드 미리 보기 : 앞으로 다가오는 가장 가까운 다른 코드 찾기
+    if (nextChordBox && nextChordName && nextChordDiag) {
+      let upcomingShape = null;
+      const curName = refShape ? refShape.name : null;
+      for (let idx = S.cur + 1; idx < S.flat.length && idx <= S.cur + 24; idx++) {
+        const fev = S.flat[idx];
+        const fs = fev ? (fev.shape || fev.barShape || null) : null;
+        if (fs && fs.name !== curName) {
+          upcomingShape = fs;
+          break;
+        }
+      }
+      if (upcomingShape) {
+        nextChordName.textContent = upcomingShape.name;
+        nextChordDiag.innerHTML = chordDiagramSVG(upcomingShape);
+        nextChordBox.hidden = false;
+      } else {
+        nextChordBox.hidden = true;
+      }
     }
 
     const parts = ev.fingers.slice()
@@ -602,9 +679,24 @@
     if (mv.length && prev && prev.engine === ev.engine) {
       bits.push('움직임 ' + mv.map(function (f) { return f + '번'; }).join('·'));
     }
+    const nx = S.flat[S.cur + 1];
+    if (nx) {
+      const nextHold = {};
+      (nx.fingers || []).concat(nx.ghosts || []).forEach(function (f) {
+        if (f.finger && f.fret > 0) nextHold[f.finger + ':' + f.string + ':' + f.fret] = true;
+      });
+      const keepList = [];
+      const seenKeep = {};
+      ev.fingers.forEach(function (f) {
+        if (f.finger && f.fret > 0 && nextHold[f.finger + ':' + f.string + ':' + f.fret] && !seenKeep[f.finger]) {
+          seenKeep[f.finger] = true;
+          keepList.push(f.finger + '번(' + f.fret + '프렛)');
+        }
+      });
+      if (keepList.length) bits.push('안 떼도 됨: ' + keepList.join('·'));
+    }
     sub.textContent = bits.join(' · ');
 
-    const nx = S.flat[S.cur + 1];
     if (nx && nx.fingers.length) {
       const f0 = nx.fingers[0];
       next.textContent = '다음 · ' + (f0.finger ? f0.finger + '번 ' + FINGER_NAME[f0.finger] + ' ' : '') +
