@@ -595,9 +595,6 @@
     const chordNameEl = $('chordName');
     const chordShapeEl = $('chordShape');
     const chordDiagEl = $('chordDiagram');
-    const nextChordBox = $('nextChordBox');
-    const nextChordName = $('nextChordName');
-    const nextChordDiag = $('nextChordDiagram');
     const main = $('hintMain');
     const sub = $('hintSub');
     const next = $('hintNext');
@@ -606,7 +603,6 @@
       chordNameEl.textContent = '—';
       chordShapeEl.textContent = '';
       chordDiagEl.innerHTML = '';
-      if (nextChordBox) nextChordBox.hidden = true;
       main.textContent = '음이 없습니다';
       sub.textContent = '';
       next.textContent = '';
@@ -628,27 +624,6 @@
       chordShapeEl.textContent = '1번 손가락 ' + ev.position + '프렛';
       chordDiagEl.innerHTML = '';
       if (capEl) capEl.textContent = '기준 코드 폼';
-    }
-
-    // 다음 코드 미리 보기 : 앞으로 다가오는 가장 가까운 다른 코드 찾기
-    if (nextChordBox && nextChordName && nextChordDiag) {
-      let upcomingShape = null;
-      const curName = refShape ? refShape.name : null;
-      for (let idx = S.cur + 1; idx < S.flat.length && idx <= S.cur + 24; idx++) {
-        const fev = S.flat[idx];
-        const fs = fev ? (fev.shape || fev.barShape || null) : null;
-        if (fs && fs.name !== curName) {
-          upcomingShape = fs;
-          break;
-        }
-      }
-      if (upcomingShape) {
-        nextChordName.textContent = upcomingShape.name;
-        nextChordDiag.innerHTML = chordDiagramSVG(upcomingShape);
-        nextChordBox.hidden = false;
-      } else {
-        nextChordBox.hidden = true;
-      }
     }
 
     const parts = ev.fingers.slice()
